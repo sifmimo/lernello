@@ -256,7 +256,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 7.1 Schéma gamification avancé
 
-- ⬜ Créer la table `achievement_rules` (versionnée)
+- ✅ Créer la table `achievement_rules` (versionnée)
 - ⬜ Créer la table `student_achievements`
 - ⬜ Créer la table `learning_milestones`
 - ⬜ Créer la table `student_milestone_progress`
@@ -385,7 +385,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 | Métrique | Cible | Actuel |
 |----------|-------|---------|
-| Tâches complétées | 100% | ~75% |
+| Tâches complétées | 100% | ~80% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
