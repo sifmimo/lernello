@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Lock, CheckCircle, Circle } from "lucide-react";
+import { ArrowLeft, BookOpen, Lock, CheckCircle, Circle, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 interface Domain {
@@ -21,27 +21,59 @@ interface Skill {
 
 const translations: Record<string, string> = {
   "domains.numbers": "Nombres et numération",
+  "domains.numbers.desc": "Compter, comparer et ordonner les nombres",
   "domains.numbers_desc": "Compter, comparer et ordonner les nombres",
   "domains.calculation": "Calcul",
+  "domains.calculation.desc": "Addition, soustraction et opérations",
   "domains.calculation_desc": "Addition, soustraction et opérations",
   "domains.geometry": "Géométrie",
+  "domains.geometry.desc": "Formes, figures et espace",
   "domains.geometry_desc": "Formes, figures et espace",
   "domains.measures": "Mesures",
+  "domains.measures.desc": "Longueurs, masses et temps",
   "domains.measures_desc": "Longueurs, masses et temps",
   "domains.problems": "Résolution de problèmes",
+  "domains.problems.desc": "Raisonnement et logique",
   "domains.problems_desc": "Raisonnement et logique",
   "skills.count_to_10": "Compter jusqu'à 10",
   "skills.count_to_20": "Compter jusqu'à 20",
   "skills.count_to_100": "Compter jusqu'à 100",
   "skills.compare_numbers": "Comparer des nombres",
+  "skills.compare_numbers_100": "Comparer les nombres",
   "skills.order_numbers": "Ordonner des nombres",
   "skills.tens_units": "Dizaines et unités",
+  "skills.count_to_1000": "Compter jusqu'à 1000",
+  "skills.count_to_10000": "Compter jusqu'à 10000",
+  "skills.large_numbers": "Grands nombres",
+  "skills.decimals": "Nombres décimaux",
   "skills.add_to_5": "Additions jusqu'à 5",
   "skills.add_to_10": "Additions jusqu'à 10",
+  "skills.addition_10": "Additions (0-10)",
+  "skills.subtraction_10": "Soustractions (0-10)",
+  "skills.addition_100": "Additions (0-100)",
   "skills.subtract_to_5": "Soustractions jusqu'à 5",
   "skills.subtract_to_10": "Soustractions jusqu'à 10",
   "skills.add_to_20": "Additions jusqu'à 20",
   "skills.doubles": "Les doubles",
+  "skills.multiplication_tables": "Tables de multiplication",
+  "skills.multiplication_2digits": "Multiplication à 2 chiffres",
+  "skills.division_2digits": "Division à 2 chiffres",
+  "skills.decimals_operations": "Opérations décimales",
+  "skills.shapes_basic": "Formes de base",
+  "skills.symmetry": "Symétrie",
+  "skills.perimeter": "Périmètre",
+  "skills.area": "Aire",
+  "skills.volume": "Volume",
+  "skills.length_basic": "Longueurs",
+  "skills.time_reading": "Lecture de l'heure",
+  "skills.mass_capacity": "Masses et contenances",
+  "skills.unit_conversions": "Conversions",
+  "skills.duration_calc": "Calcul de durées",
+  "skills.problems_simple": "Problèmes simples",
+  "skills.problems_2steps": "Problèmes à 2 étapes",
+  "skills.problems_multi": "Problèmes multi-étapes",
+  "skills.problems_complex": "Problèmes complexes",
+  "skills.problems_advanced": "Problèmes avancés",
 };
 
 const iconMap: Record<string, string> = {
@@ -100,11 +132,15 @@ export default async function MathLearnPage() {
           <div className="p-3 rounded-xl bg-primary/10">
             <BookOpen className="h-8 w-8 text-primary" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold">Mathématiques</h1>
             <p className="text-muted-foreground">
               Explore les différents domaines et progresse à ton rythme
             </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 px-4 py-2">
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span className="text-sm font-medium text-indigo-700">Parcours adapté par l'IA</span>
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Star, Lock, CheckCircle } from 'lucide-react';
+import { ArrowLeft, BookOpen, Star, Lock, CheckCircle, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Domain {
@@ -54,11 +54,19 @@ const skillNames: Record<string, string> = {
 };
 
 const domainNames: Record<string, string> = {
-  numbers: 'Nombres',
+  numbers: 'Nombres et numération',
   calculation: 'Calcul',
   geometry: 'Géométrie',
   measures: 'Mesures',
-  problems: 'Problèmes',
+  problems: 'Résolution de problèmes',
+};
+
+const domainDescriptions: Record<string, string> = {
+  numbers: 'Compter, comparer et ordonner les nombres',
+  calculation: 'Addition, soustraction et opérations',
+  geometry: 'Formes, figures et espace',
+  measures: 'Longueurs, masses et temps',
+  problems: 'Raisonnement et logique',
 };
 
 export default function SubjectPage() {
@@ -148,9 +156,13 @@ export default function SubjectPage() {
           <Link href="/learn" className="rounded-lg p-2 hover:bg-gray-100">
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </Link>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold text-gray-900">Mathématiques</h1>
-            <p className="text-sm text-gray-500">Choisis un domaine</p>
+            <p className="text-sm text-gray-500">Explore les domaines et progresse à ton rythme</p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 px-4 py-2">
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span className="text-sm font-medium text-indigo-700">Parcours adapté par l'IA</span>
           </div>
         </div>
       </header>
@@ -160,10 +172,15 @@ export default function SubjectPage() {
           {domains.map((domain) => (
             <div key={domain.id} className="rounded-2xl bg-white p-6 shadow-lg">
               <div className="mb-4 flex items-center gap-3">
-                <span className="text-2xl">{domain.icon}</span>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {domainNames[domain.code] || domain.name_key}
-                </h2>
+                <span className="text-2xl">{domain.icon || '📚'}</span>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {domainNames[domain.code] || domain.name_key}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {domainDescriptions[domain.code] || ''}
+                  </p>
+                </div>
               </div>
               
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
