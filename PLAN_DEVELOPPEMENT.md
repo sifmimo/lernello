@@ -240,7 +240,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 - ✅ Créer la page de réglages
 - ✅ Section : Gestion des profils enfants
 - ✅ Section : Préférences pédagogiques par enfant
-- ⬜ Section : Configuration IA (BYOK)
+- ✅ Section : Configuration IA (BYOK)
 - ✅ Section : Gestion du compte
 - ✅ Section : Export/Suppression des données (RGPD)
 
@@ -389,7 +389,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 | Métrique | Cible | Actuel |
 |----------|-------|---------|
-| Tâches complétées | 100% | ~95% |
+| Tâches complétées | 100% | ~98% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
