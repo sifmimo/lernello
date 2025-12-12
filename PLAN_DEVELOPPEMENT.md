@@ -185,11 +185,11 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 - ✅ Créer le service d'abstraction IA (multi-provider)
 - ✅ Implémenter le client OpenAI
 - ✅ Implémenter le client Anthropic
-- ⬜ Créer les Supabase Edge Functions pour l'IA (optionnel)
-- ⬜ Configurer Inngest pour les background jobs (optionnel)
-- ⬜ Créer le système de cache Redis pour les réponses IA (optionnel)
-- ⬜ Implémenter le rate limiting (optionnel)
-- ⬜ Créer le flux async avec Realtime pour les tâches longues (optionnel)
+- ✅ Implémenter le rate limiting
+- ⬜ Créer les Supabase Edge Functions pour l'IA (post-MVP)
+- ⬜ Configurer Inngest pour les background jobs (post-MVP)
+- ⬜ Créer le système de cache Redis pour les réponses IA (post-MVP)
+- ⬜ Créer le flux async avec Realtime pour les tâches longues (post-MVP)
 
 ### 5.2 Clés API personnalisées (BYOK)
 
@@ -201,11 +201,11 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 - ✅ Créer l'interface de configuration dans les réglages parent
 - ✅ Implémenter le sélecteur de provider/modèle
 - ✅ Implémenter le fallback en cas d'erreur
-- ⬜ Créer le disclaimer UX obligatoire (optionnel)
-- ⬜ Implémenter les limites quotidiennes/mensuelles (optionnel)
-- ⬜ Créer le tableau de bord usage BYOK (optionnel)
-- ⬜ Implémenter la détection d'abus (optionnel)
-- ⬜ Implémenter le kill switch (optionnel)
+- ✅ Créer le disclaimer UX obligatoire
+- ✅ Implémenter les limites quotidiennes/mensuelles
+- ✅ Créer le tableau de bord usage BYOK
+- ✅ Implémenter la détection d'abus
+- ✅ Implémenter le kill switch
 
 ### 5.3 Génération d'exercices
 
@@ -273,8 +273,8 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 - ✅ Créer le service d'évaluation des règles (trigger_conditions)
 - ✅ Implémenter les différents types de triggers (skill_mastery, streak, time_goal)
-- ⬜ Créer le système de versioning des règles (optionnel)
-- ⬜ Seed des achievements de base (optionnel)
+- ✅ Créer le système de versioning des règles
+- ✅ Seed des achievements de base (FR/AR/EN)
 - ✅ Créer les Server Actions `achievements`
 
 ### 7.3 Jalons pédagogiques (Milestones)
@@ -308,8 +308,9 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 - ✅ Tests des utilitaires (calcul maîtrise, etc.)
 - ✅ Tests des services IA
-- ⬜ Tests des hooks personnalisés (optionnel)
-- ⬜ Couverture > 80% (optionnel)
+- ✅ Tests des hooks personnalisés
+- ✅ Configuration Jest complète
+- ⬜ Couverture > 80% (post-MVP)
 
 ### 8.2 Tests E2E
 
