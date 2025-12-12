@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { getAIHint, getEncouragement } from '@/server/actions/ai';
 
 interface Exercise {
   id: string;
@@ -48,6 +49,10 @@ export default function SkillExercisePage() {
   const [fillBlankAnswers, setFillBlankAnswers] = useState<string[]>([]);
   const [dragDropOrder, setDragDropOrder] = useState<number[]>([]);
   const [showHint, setShowHint] = useState(false);
+  const [aiHint, setAiHint] = useState<string | null>(null);
+  const [aiEncouragement, setAiEncouragement] = useState<string | null>(null);
+  const [loadingHint, setLoadingHint] = useState(false);
+  const [hintLevel, setHintLevel] = useState(0);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -116,6 +121,14 @@ export default function SkillExercisePage() {
 
     if (correct) {
       setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
+      // Générer un encouragement IA
+      getEncouragement(stats.correct >= 2 ? 'streak' : 'correct', stats.correct + 1)
+        .then(msg => setAiEncouragement(msg))
+        .catch(() => setAiEncouragement('Bravo ! \ud83c\udf89'));
+    } else {
+      getEncouragement('incorrect')
+        .then(msg => setAiEncouragement(msg))
+        .catch(() => setAiEncouragement('Continue, tu vas y arriver ! \ud83d\udcaa'));
     }
 
     // Sauvegarder la tentative
@@ -185,9 +198,43 @@ export default function SkillExercisePage() {
       setDragDropOrder([]);
       setShowHint(false);
       setShowResult(false);
+      setAiHint(null);
+      setAiEncouragement(null);
+      setHintLevel(0);
     } else {
       setSessionComplete(true);
     }
+  };
+
+  const requestAIHint = async () => {
+    if (!currentExercise || loadingHint) return;
+    setLoadingHint(true);
+    
+    try {
+      const correctAnswer = currentExercise.type === 'qcm' 
+        ? currentExercise.content.options?.[currentExercise.content.correct || 0] || ''
+        : currentExercise.content.answer || currentExercise.content.items?.join(', ') || '';
+      
+      const result = await getAIHint(
+        currentExercise.content.question,
+        correctAnswer,
+        hintLevel + 1
+      );
+      
+      if (result.success && result.hint) {
+        setAiHint(result.hint);
+        setHintLevel(prev => prev + 1);
+        setShowHint(true);
+      } else {
+        setAiHint(currentExercise.content.hint || 'Réfléchis bien \u00e0 la question...');
+        setShowHint(true);
+      }
+    } catch {
+      setAiHint(currentExercise.content.hint || 'Réfléchis bien \u00e0 la question...');
+      setShowHint(true);
+    }
+    
+    setLoadingHint(false);
   };
 
   const moveDragItem = (fromIndex: number, toIndex: number) => {
@@ -480,38 +527,67 @@ export default function SkillExercisePage() {
             </div>
           )}
 
-          {currentExercise.content.hint && !showResult && (
+          {!showResult && (
             <div className="mt-4 flex justify-center">
               <button
-                onClick={() => setShowHint(!showHint)}
-                className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800"
+                onClick={requestAIHint}
+                disabled={loadingHint}
+                className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
               >
-                <Lightbulb className="h-4 w-4" />
-                {showHint ? 'Masquer l\'indice' : 'Voir un indice'}
+                {loadingHint ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                ) : (
+                  <Lightbulb className="h-4 w-4" />
+                )}
+                {loadingHint ? 'L\'IA réfléchit...' : showHint ? 'Encore un indice' : 'Demander un indice à l\'IA'}
               </button>
             </div>
           )}
 
-          {showHint && currentExercise.content.hint && (
-            <div className="mt-3 rounded-lg bg-amber-50 p-4 text-center text-amber-800">
-              💡 {currentExercise.content.hint}
+          {showHint && aiHint && (
+            <div className="mt-3 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 p-4 border border-indigo-100">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
+                  <Bot className="h-4 w-4 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-indigo-600 mb-1">Indice de l'IA (niveau {hintLevel})</p>
+                  <p className="text-gray-700">{aiHint}</p>
+                </div>
+              </div>
             </div>
           )}
 
           {showResult && (
-            <div className={`mt-6 flex items-center justify-center gap-3 rounded-xl p-4 ${
-              isCorrect ? 'bg-green-50' : 'bg-red-50'
-            }`}>
-              {isCorrect ? (
-                <>
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                  <span className="text-lg font-medium text-green-700">Bravo, c'est correct !</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-6 w-6 text-red-600" />
-                  <span className="text-lg font-medium text-red-700">Ce n'est pas la bonne réponse</span>
-                </>
+            <div className="mt-6 space-y-3">
+              <div className={`flex items-center justify-center gap-3 rounded-xl p-4 ${
+                isCorrect ? 'bg-green-50' : 'bg-red-50'
+              }`}>
+                {isCorrect ? (
+                  <>
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                    <span className="text-lg font-medium text-green-700">Bravo, c'est correct !</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-6 w-6 text-red-600" />
+                    <span className="text-lg font-medium text-red-700">Ce n'est pas la bonne réponse</span>
+                  </>
+                )}
+              </div>
+              
+              {aiEncouragement && (
+                <div className="rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 p-4 border border-indigo-100">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
+                      <MessageCircle className="h-4 w-4 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-indigo-600 mb-1">Message de l'IA</p>
+                      <p className="text-gray-700">{aiEncouragement}</p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}

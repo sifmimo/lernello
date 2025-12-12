@@ -138,7 +138,7 @@ export async function createAICompletion(
   }
 }
 
-export function getProviderFromModel(model: AIModel): AIProvider {
+export async function getProviderFromModel(model: AIModel): Promise<AIProvider> {
   if (model.startsWith('gpt-')) return 'openai';
   if (model.startsWith('claude-')) return 'anthropic';
   return 'platform';
