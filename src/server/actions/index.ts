@@ -4,3 +4,8 @@ export * from './exercises';
 export * from './profiles';
 export * from './progress';
 export * from './achievements';
+export * from './ai';
+export * from './prerequisites';
+export * from './milestones';
+export * from './notifications';
+export * from './encouragements';

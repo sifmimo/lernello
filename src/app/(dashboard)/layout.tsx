@@ -13,7 +13,8 @@ import {
   X,
   Globe,
   ChevronDown,
-  Trophy
+  Trophy,
+  Bell
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Récompenses', href: '/achievements', icon: Trophy },
   { name: 'Profils', href: '/profiles', icon: User },
   { name: 'Espace Parent', href: '/parent', icon: User },
+  { name: 'Notifications', href: '/parent/notifications', icon: Bell },
   { name: 'Paramètres', href: '/settings', icon: Settings },
 ];
 

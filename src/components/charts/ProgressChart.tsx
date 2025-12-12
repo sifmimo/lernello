@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 
 interface DataPoint {
-  date: string;
+  date?: string;
   value: number;
   label?: string;
 }
@@ -138,12 +138,13 @@ export function BarChart({ data, height = 150, showValues = true }: BarChartProp
 }
 
 interface DonutChartProps {
-  value: number;
+  value?: number;
   max?: number;
   size?: number;
   strokeWidth?: number;
   color?: string;
   label?: string;
+  data?: { label: string; value: number; color: string }[];
 }
 
 export function DonutChart({ 
@@ -152,17 +153,69 @@ export function DonutChart({
   size = 100, 
   strokeWidth = 10,
   color = '#6366f1',
-  label
+  label,
+  data
 }: DonutChartProps) {
+  if (data && data.length > 0) {
+    const total = data.reduce((sum, d) => sum + d.value, 0);
+    let currentAngle = -90;
+    
+    return (
+      <div className="flex items-center gap-4">
+        <svg width={size} height={size}>
+          {data.map((segment, i) => {
+            const percentage = total > 0 ? segment.value / total : 0;
+            const angle = percentage * 360;
+            const radius = (size - strokeWidth) / 2;
+            const cx = size / 2;
+            const cy = size / 2;
+            
+            const startAngle = currentAngle;
+            const endAngle = currentAngle + angle;
+            currentAngle = endAngle;
+            
+            const startRad = (startAngle * Math.PI) / 180;
+            const endRad = (endAngle * Math.PI) / 180;
+            
+            const x1 = cx + radius * Math.cos(startRad);
+            const y1 = cy + radius * Math.sin(startRad);
+            const x2 = cx + radius * Math.cos(endRad);
+            const y2 = cy + radius * Math.sin(endRad);
+            
+            const largeArc = angle > 180 ? 1 : 0;
+            
+            if (percentage === 0) return null;
+            
+            return (
+              <path
+                key={i}
+                d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                fill={segment.color}
+              />
+            );
+          })}
+          <circle cx={size / 2} cy={size / 2} r={size / 4} fill="white" />
+        </svg>
+        <div className="space-y-1">
+          {data.map((segment, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm">
+              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
+              <span className="text-gray-600">{segment.label}: {segment.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(value / max, 1);
+  const progress = Math.min((value || 0) / max, 1);
   const offset = circumference * (1 - progress);
 
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width={size} height={size} className="-rotate-90">
-        {/* Background circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -171,7 +224,6 @@ export function DonutChart({
           stroke="#e5e7eb"
           strokeWidth={strokeWidth}
         />
-        {/* Progress circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -186,7 +238,7 @@ export function DonutChart({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold text-gray-900">{Math.round(value)}%</span>
+        <span className="text-2xl font-bold text-gray-900">{Math.round(value || 0)}%</span>
         {label && <span className="text-xs text-gray-500">{label}</span>}
       </div>
     </div>
