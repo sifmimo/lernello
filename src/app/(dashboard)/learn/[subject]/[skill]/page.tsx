@@ -14,6 +14,8 @@ interface Exercise {
     options?: string[];
     correct?: number;
     answer?: string;
+    blanks?: string[];
+    text?: string;
   };
   difficulty: number;
 }
@@ -39,6 +41,7 @@ export default function SkillExercisePage() {
   const [sessionComplete, setSessionComplete] = useState(false);
   const [stats, setStats] = useState<SessionStats>({ total: 0, correct: 0, startTime: new Date() });
   const [inputAnswer, setInputAnswer] = useState('');
+  const [fillBlankAnswers, setFillBlankAnswers] = useState<string[]>([]);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -89,6 +92,11 @@ export default function SkillExercisePage() {
       correct = selectedAnswer === currentExercise.content.correct;
     } else if (currentExercise.type === 'free_input') {
       correct = inputAnswer.trim().toLowerCase() === currentExercise.content.answer?.toLowerCase();
+    } else if (currentExercise.type === 'fill_blank') {
+      const blanks = currentExercise.content.blanks || [];
+      correct = blanks.every((blank: string, i: number) => 
+        fillBlankAnswers[i]?.trim().toLowerCase() === blank.toLowerCase()
+      );
     }
 
     setIsCorrect(correct);
@@ -161,6 +169,7 @@ export default function SkillExercisePage() {
       setCurrentIndex(prev => prev + 1);
       setSelectedAnswer(null);
       setInputAnswer('');
+      setFillBlankAnswers([]);
       setShowResult(false);
     } else {
       setSessionComplete(true);
@@ -338,6 +347,43 @@ export default function SkillExercisePage() {
             </div>
           )}
 
+          {currentExercise.type === 'fill_blank' && currentExercise.content.text && (
+            <div className="mx-auto max-w-2xl">
+              <div className="text-xl leading-relaxed">
+                {currentExercise.content.text.split('___').map((part: string, index: number, array: string[]) => (
+                  <span key={index}>
+                    {part}
+                    {index < array.length - 1 && (
+                      <input
+                        type="text"
+                        value={fillBlankAnswers[index] || ''}
+                        onChange={(e) => {
+                          const newAnswers = [...fillBlankAnswers];
+                          newAnswers[index] = e.target.value;
+                          setFillBlankAnswers(newAnswers);
+                        }}
+                        disabled={showResult}
+                        className={`mx-1 w-24 rounded-lg border-2 px-3 py-1 text-center font-bold transition-all ${
+                          showResult
+                            ? fillBlankAnswers[index]?.trim().toLowerCase() === currentExercise.content.blanks?.[index]?.toLowerCase()
+                              ? 'border-green-500 bg-green-50 text-green-700'
+                              : 'border-red-500 bg-red-50 text-red-700'
+                            : 'border-indigo-300 focus:border-indigo-500 focus:outline-none'
+                        }`}
+                        placeholder="..."
+                      />
+                    )}
+                  </span>
+                ))}
+              </div>
+              {showResult && !isCorrect && currentExercise.content.blanks && (
+                <p className="mt-4 text-center text-lg text-gray-600">
+                  Les bonnes réponses: <strong className="text-green-600">{currentExercise.content.blanks.join(', ')}</strong>
+                </p>
+              )}
+            </div>
+          )}
+
           {showResult && (
             <div className={`mt-6 flex items-center justify-center gap-3 rounded-xl p-4 ${
               isCorrect ? 'bg-green-50' : 'bg-red-50'
@@ -360,7 +406,7 @@ export default function SkillExercisePage() {
             {!showResult ? (
               <button
                 onClick={checkAnswer}
-                disabled={selectedAnswer === null && inputAnswer === ''}
+                disabled={selectedAnswer === null && inputAnswer === '' && fillBlankAnswers.length === 0}
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-lg font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
                 Vérifier
