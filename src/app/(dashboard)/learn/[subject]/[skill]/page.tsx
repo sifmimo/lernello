@@ -55,37 +55,38 @@ export default function SkillExercisePage() {
       router.push('/profiles');
       return;
     }
-    loadExercises();
-  }, [router, skillCode]);
-
-  const loadExercises = async () => {
-    const supabase = createClient();
     
-    const { data: skillData } = await supabase
-      .from('skills')
-      .select('id')
-      .eq('code', skillCode)
-      .single();
+    const fetchExercises = async () => {
+      const supabase = createClient();
+      
+      const { data: skillData } = await supabase
+        .from('skills')
+        .select('id')
+        .eq('code', skillCode)
+        .single();
 
-    if (!skillData) {
+      if (!skillData) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: exercisesData } = await supabase
+        .from('exercises')
+        .select('id, type, content, difficulty')
+        .eq('skill_id', skillData.id)
+        .eq('is_validated', true)
+        .order('difficulty', { ascending: true })
+        .limit(5);
+
+      if (exercisesData && exercisesData.length > 0) {
+        setExercises(exercisesData as Exercise[]);
+        setStats({ total: exercisesData.length, correct: 0, startTime: new Date() });
+      }
       setLoading(false);
-      return;
-    }
-
-    const { data: exercisesData } = await supabase
-      .from('exercises')
-      .select('id, type, content, difficulty')
-      .eq('skill_id', skillData.id)
-      .eq('is_validated', true)
-      .order('difficulty', { ascending: true })
-      .limit(5);
-
-    if (exercisesData && exercisesData.length > 0) {
-      setExercises(exercisesData as Exercise[]);
-      setStats({ total: exercisesData.length, correct: 0, startTime: new Date() });
-    }
-    setLoading(false);
-  };
+    };
+    
+    fetchExercises();
+  }, [router, skillCode]);
 
   const currentExercise = exercises[currentIndex];
 

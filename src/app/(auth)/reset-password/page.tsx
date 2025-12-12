@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { BookOpen } from 'lucide-react';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <Image src="/logo.svg" alt="Lernello" width={40} height={40} />
+            <BookOpen className="h-10 w-10 text-indigo-600" />
             <span className="text-xl font-bold text-indigo-600">Lernello</span>
           </Link>
           <h1 className="mt-6 text-2xl font-bold text-gray-900">Nouveau mot de passe</h1>

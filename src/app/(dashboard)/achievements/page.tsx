@@ -8,7 +8,6 @@ import {
   Flame, 
   Target,
   Clock,
-  Zap,
   Award,
   Lock
 } from 'lucide-react';
@@ -117,9 +116,9 @@ export default function AchievementsPage() {
 
     if (rules) setAllRules(rules);
     if (earned) {
-      setEarnedAchievements(earned.map((e: { id: string; rule_id: string; earned_at: string; is_seen_by_student: boolean; achievement_rules: Achievement['rule'] }) => ({
+      setEarnedAchievements(earned.map((e: { id: string; rule_id: string; earned_at: string; is_seen_by_student: boolean; achievement_rules: { code: string; name_key: string; description_key: string; icon: string; category: string }[] }) => ({
         ...e,
-        rule: e.achievement_rules
+        rule: Array.isArray(e.achievement_rules) ? e.achievement_rules[0] : e.achievement_rules
       })));
       
       const unseenIds = earned

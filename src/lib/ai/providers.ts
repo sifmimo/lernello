@@ -1,8 +1,5 @@
 'use server';
 
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
-
 export type AIProvider = 'openai' | 'anthropic' | 'platform';
 export type AIModel = 
   | 'gpt-4o' 
@@ -40,24 +37,35 @@ export async function createOpenAICompletion(
   apiKey: string,
   options: AICompletionOptions
 ): Promise<AICompletionResult> {
-  const openai = new OpenAI({ apiKey });
-  
   const model = options.model || defaultOpenAIModel;
   
-  const response = await openai.chat.completions.create({
-    model,
-    messages: options.messages,
-    temperature: options.temperature ?? 0.7,
-    max_tokens: options.maxTokens ?? 1024,
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: options.messages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 1024,
+    }),
   });
 
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+
   return {
-    content: response.choices[0]?.message?.content || '',
+    content: data.choices?.[0]?.message?.content || '',
     model,
-    usage: response.usage ? {
-      promptTokens: response.usage.prompt_tokens,
-      completionTokens: response.usage.completion_tokens,
-      totalTokens: response.usage.total_tokens,
+    usage: data.usage ? {
+      promptTokens: data.usage.prompt_tokens,
+      completionTokens: data.usage.completion_tokens,
+      totalTokens: data.usage.total_tokens,
     } : undefined,
   };
 }
@@ -66,33 +74,44 @@ export async function createAnthropicCompletion(
   apiKey: string,
   options: AICompletionOptions
 ): Promise<AICompletionResult> {
-  const anthropic = new Anthropic({ apiKey });
-  
   const model = options.model || defaultAnthropicModel;
   
   const systemMessage = options.messages.find(m => m.role === 'system');
   const otherMessages = options.messages.filter(m => m.role !== 'system');
 
-  const response = await anthropic.messages.create({
-    model,
-    max_tokens: options.maxTokens ?? 1024,
-    system: systemMessage?.content,
-    messages: otherMessages.map(m => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    })),
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: options.maxTokens ?? 1024,
+      system: systemMessage?.content,
+      messages: otherMessages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      })),
+    }),
   });
 
-  const textContent = response.content.find(c => c.type === 'text');
+  if (!response.ok) {
+    throw new Error(`Anthropic API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const textContent = data.content?.find((c: { type: string }) => c.type === 'text');
   
   return {
-    content: textContent?.type === 'text' ? textContent.text : '',
+    content: textContent?.text || '',
     model,
-    usage: {
-      promptTokens: response.usage.input_tokens,
-      completionTokens: response.usage.output_tokens,
-      totalTokens: response.usage.input_tokens + response.usage.output_tokens,
-    },
+    usage: data.usage ? {
+      promptTokens: data.usage.input_tokens,
+      completionTokens: data.usage.output_tokens,
+      totalTokens: data.usage.input_tokens + data.usage.output_tokens,
+    } : undefined,
   };
 }
 

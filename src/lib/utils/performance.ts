@@ -91,8 +91,8 @@ export function lazyLoad<T>(
 
   return async () => {
     if (cached) return cached;
-    const module = await importFn();
-    cached = module.default;
+    const imported = await importFn();
+    cached = imported.default;
     return cached;
   };
 }
