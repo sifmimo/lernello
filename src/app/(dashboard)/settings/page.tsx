@@ -11,7 +11,8 @@ import {
   Trash2,
   ChevronRight,
   Download,
-  LogOut
+  LogOut,
+  Settings
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -167,16 +168,28 @@ export default function SettingsPage() {
       {/* Profils enfants */}
       <section className="mb-8">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Profils enfants</h2>
-        <Link
-          href="/settings/profiles"
-          className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
-        >
-          <div className="flex items-center gap-3">
-            <User className="h-5 w-5 text-gray-400" />
-            <span className="text-gray-700">Gérer les profils enfants</span>
-          </div>
-          <ChevronRight className="h-5 w-5 text-gray-400" />
-        </Link>
+        <div className="space-y-2">
+          <Link
+            href="/settings/profiles"
+            className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-3">
+              <User className="h-5 w-5 text-gray-400" />
+              <span className="text-gray-700">Gérer les profils enfants</span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </Link>
+          <Link
+            href="/settings/preferences"
+            className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-3">
+              <Settings className="h-5 w-5 text-gray-400" />
+              <span className="text-gray-700">Préférences pédagogiques</span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </Link>
+        </div>
       </section>
 
       {/* Sécurité */}
