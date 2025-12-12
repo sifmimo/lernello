@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Globe,
-  ChevronDown
+  ChevronDown,
+  Trophy
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -25,6 +26,7 @@ const languages = [
 const navigation = [
   { name: 'Accueil', href: '/dashboard', icon: Home },
   { name: 'Apprendre', href: '/learn', icon: BookOpen },
+  { name: 'Récompenses', href: '/achievements', icon: Trophy },
   { name: 'Profils', href: '/profiles', icon: User },
   { name: 'Espace Parent', href: '/parent', icon: User },
   { name: 'Paramètres', href: '/settings', icon: Settings },
