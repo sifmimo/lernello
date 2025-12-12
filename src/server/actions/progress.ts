@@ -1,0 +1,229 @@
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+
+interface ProgressUpdate {
+  studentId: string;
+  skillId: string;
+  isCorrect: boolean;
+  difficulty: number;
+  timeSpentSeconds?: number;
+}
+
+export async function updateSkillMastery(update: ProgressUpdate) {
+  const supabase = await createClient();
+  
+  const { data: existing } = await supabase
+    .from('student_skill_progress')
+    .select('*')
+    .eq('student_id', update.studentId)
+    .eq('skill_id', update.skillId)
+    .single();
+
+  const now = new Date();
+  const newAttempts = (existing?.attempts_count || 0) + 1;
+  const newCorrect = (existing?.correct_count || 0) + (update.isCorrect ? 1 : 0);
+  
+  // Algorithme de maîtrise amélioré
+  // - Pondération par difficulté (exercices difficiles valent plus)
+  // - Décroissance temporelle (les anciennes tentatives comptent moins)
+  // - Bonus pour les séries consécutives correctes
+  
+  const difficultyWeight = 0.8 + (update.difficulty * 0.1); // 0.9 à 1.3
+  const baseAccuracy = newCorrect / newAttempts;
+  
+  // Calculer le streak (série de bonnes réponses)
+  const currentStreak = update.isCorrect 
+    ? (existing?.current_streak || 0) + 1 
+    : 0;
+  const streakBonus = Math.min(currentStreak * 2, 10); // Max +10%
+  
+  // Maîtrise finale
+  let mastery = Math.round(baseAccuracy * 100 * difficultyWeight) + streakBonus;
+  mastery = Math.min(100, Math.max(0, mastery)); // Clamp 0-100
+
+  const progressData = {
+    student_id: update.studentId,
+    skill_id: update.skillId,
+    attempts_count: newAttempts,
+    correct_count: newCorrect,
+    mastery_level: mastery,
+    current_streak: currentStreak,
+    best_streak: Math.max(currentStreak, existing?.best_streak || 0),
+    last_attempt_at: now.toISOString(),
+    total_time_seconds: (existing?.total_time_seconds || 0) + (update.timeSpentSeconds || 0),
+  };
+
+  if (existing) {
+    await supabase
+      .from('student_skill_progress')
+      .update(progressData)
+      .eq('id', existing.id);
+  } else {
+    await supabase
+      .from('student_skill_progress')
+      .insert(progressData);
+  }
+
+  return { mastery, streak: currentStreak };
+}
+
+export async function getNextSkillExercise(
+  studentId: string,
+  skillId: string,
+  completedExerciseIds: string[] = []
+) {
+  const supabase = await createClient();
+  
+  // Récupérer la progression actuelle
+  const { data: progress } = await supabase
+    .from('student_skill_progress')
+    .select('mastery_level')
+    .eq('student_id', studentId)
+    .eq('skill_id', skillId)
+    .single();
+
+  const masteryLevel = progress?.mastery_level || 0;
+  
+  // Sélectionner la difficulté en fonction de la maîtrise
+  // Maîtrise < 30% → difficulté 1
+  // Maîtrise 30-50% → difficulté 1-2
+  // Maîtrise 50-70% → difficulté 2-3
+  // Maîtrise 70-90% → difficulté 3-4
+  // Maîtrise > 90% → difficulté 4-5
+  
+  let minDifficulty = 1;
+  let maxDifficulty = 2;
+  
+  if (masteryLevel >= 90) {
+    minDifficulty = 4;
+    maxDifficulty = 5;
+  } else if (masteryLevel >= 70) {
+    minDifficulty = 3;
+    maxDifficulty = 4;
+  } else if (masteryLevel >= 50) {
+    minDifficulty = 2;
+    maxDifficulty = 3;
+  } else if (masteryLevel >= 30) {
+    minDifficulty = 1;
+    maxDifficulty = 2;
+  }
+
+  let query = supabase
+    .from('exercises')
+    .select('*')
+    .eq('skill_id', skillId)
+    .eq('is_validated', true)
+    .gte('difficulty', minDifficulty)
+    .lte('difficulty', maxDifficulty)
+    .limit(1);
+
+  if (completedExerciseIds.length > 0) {
+    query = query.not('id', 'in', `(${completedExerciseIds.join(',')})`);
+  }
+
+  const { data: exercises } = await query;
+
+  if (!exercises || exercises.length === 0) {
+    // Fallback: récupérer n'importe quel exercice non complété
+    const { data: fallbackExercises } = await supabase
+      .from('exercises')
+      .select('*')
+      .eq('skill_id', skillId)
+      .eq('is_validated', true)
+      .not('id', 'in', completedExerciseIds.length > 0 ? `(${completedExerciseIds.join(',')})` : '()')
+      .limit(1);
+    
+    return fallbackExercises?.[0] || null;
+  }
+
+  return exercises[0];
+}
+
+export async function getStudentDashboardStats(studentId: string) {
+  const supabase = await createClient();
+  
+  // Progression globale
+  const { data: progress } = await supabase
+    .from('student_skill_progress')
+    .select('mastery_level, attempts_count, correct_count, current_streak, best_streak')
+    .eq('student_id', studentId);
+
+  if (!progress || progress.length === 0) {
+    return {
+      totalSkills: 0,
+      masteredSkills: 0,
+      inProgressSkills: 0,
+      averageMastery: 0,
+      totalAttempts: 0,
+      totalCorrect: 0,
+      accuracy: 0,
+      bestStreak: 0,
+    };
+  }
+
+  const totalSkills = progress.length;
+  const masteredSkills = progress.filter((p: { mastery_level: number }) => p.mastery_level >= 80).length;
+  const inProgressSkills = progress.filter((p: { mastery_level: number }) => p.mastery_level > 0 && p.mastery_level < 80).length;
+  const totalAttempts = progress.reduce((sum: number, p: { attempts_count: number }) => sum + p.attempts_count, 0);
+  const totalCorrect = progress.reduce((sum: number, p: { correct_count: number }) => sum + p.correct_count, 0);
+  const averageMastery = Math.round(progress.reduce((sum: number, p: { mastery_level: number }) => sum + p.mastery_level, 0) / totalSkills);
+  const accuracy = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
+  const bestStreak = Math.max(...progress.map((p: { best_streak: number }) => p.best_streak || 0));
+
+  return {
+    totalSkills,
+    masteredSkills,
+    inProgressSkills,
+    averageMastery,
+    totalAttempts,
+    totalCorrect,
+    accuracy,
+    bestStreak,
+  };
+}
+
+export async function startLearningSession(studentId: string, skillIds: string[]) {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase
+    .from('learning_sessions')
+    .insert({
+      student_id: studentId,
+      skills_practiced: skillIds,
+      started_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error starting session:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function endLearningSession(
+  sessionId: string,
+  exercisesCompleted: number,
+  correctAnswers: number
+) {
+  const supabase = await createClient();
+  
+  const { error } = await supabase
+    .from('learning_sessions')
+    .update({
+      ended_at: new Date().toISOString(),
+      exercises_completed: exercisesCompleted,
+      correct_answers: correctAnswers,
+    })
+    .eq('id', sessionId);
+
+  if (error) {
+    console.error('Error ending session:', error);
+    return false;
+  }
+
+  return true;
+}
