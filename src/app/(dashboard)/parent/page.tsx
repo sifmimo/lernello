@@ -16,6 +16,7 @@ import {
   Flame
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { ProgressChart, DonutChart } from '@/components/charts';
 
 interface StudentProfile {
   id: string;
@@ -312,39 +313,52 @@ export default function ParentDashboardPage() {
               </div>
             </div>
 
-            {/* Activité récente */}
+            {/* Graphique d'activité */}
             <div className="rounded-xl bg-white p-6 shadow-sm">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
                 <Calendar className="h-5 w-5 text-gray-400" />
-                Activité récente
+                Activité des 7 derniers jours
               </h3>
               {stats.recentActivity.length > 0 ? (
-                <div className="space-y-3">
-                  {stats.recentActivity.map((activity, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
-                    >
-                      <span className="text-sm font-medium text-gray-700">{activity.date}</span>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-gray-600">
-                          {activity.exercisesCompleted} exercices
-                        </span>
-                        <span className={`font-medium ${
-                          activity.exercisesCompleted > 0
-                            ? Math.round((activity.correctAnswers / activity.exercisesCompleted) * 100) >= 70
-                              ? 'text-green-600'
-                              : 'text-orange-600'
-                            : 'text-gray-400'
-                        }`}>
-                          {activity.exercisesCompleted > 0
-                            ? `${Math.round((activity.correctAnswers / activity.exercisesCompleted) * 100)}%`
-                            : '-'}
-                        </span>
+                <>
+                  <ProgressChart
+                    data={stats.recentActivity.slice().reverse().map(a => ({
+                      date: a.date,
+                      value: a.exercisesCompleted > 0 
+                        ? Math.round((a.correctAnswers / a.exercisesCompleted) * 100)
+                        : 0,
+                      label: a.date
+                    }))}
+                    height={100}
+                    color="#6366f1"
+                  />
+                  <div className="mt-4 space-y-2">
+                    {stats.recentActivity.slice(0, 3).map((activity, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
+                      >
+                        <span className="text-sm font-medium text-gray-700">{activity.date}</span>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-gray-600">
+                            {activity.exercisesCompleted} exercices
+                          </span>
+                          <span className={`font-medium ${
+                            activity.exercisesCompleted > 0
+                              ? Math.round((activity.correctAnswers / activity.exercisesCompleted) * 100) >= 70
+                                ? 'text-green-600'
+                                : 'text-orange-600'
+                              : 'text-gray-400'
+                          }`}>
+                            {activity.exercisesCompleted > 0
+                              ? `${Math.round((activity.correctAnswers / activity.exercisesCompleted) * 100)}%`
+                              : '-'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <div className="py-8 text-center text-gray-500">
                   <Clock className="mx-auto mb-2 h-8 w-8 text-gray-300" />
