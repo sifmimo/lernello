@@ -228,21 +228,21 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 6.1 Interface parent
 
-- ⬜ Créer le layout parent (distinct de l'élève)
-- ⬜ Créer la page de sélection de l'enfant
-- ⬜ Créer le dashboard de progression par enfant
-- ⬜ Afficher les compétences maîtrisées
-- ⬜ Afficher les difficultés identifiées
-- ⬜ Afficher le temps passé
+- ✅ Créer le layout parent (distinct de l'élève)
+- ✅ Créer la page de sélection de l'enfant
+- ✅ Créer le dashboard de progression par enfant
+- ✅ Afficher les compétences maîtrisées
+- ✅ Afficher les difficultés identifiées
+- ✅ Afficher le temps passé
 
 ### 6.2 Réglages parent
 
-- ⬜ Créer la page de réglages
-- ⬜ Section : Gestion des profils enfants
+- ✅ Créer la page de réglages
+- ✅ Section : Gestion des profils enfants
 - ⬜ Section : Préférences pédagogiques par enfant
 - ⬜ Section : Configuration IA (BYOK)
-- ⬜ Section : Gestion du compte
-- ⬜ Section : Export/Suppression des données (RGPD)
+- ✅ Section : Gestion du compte
+- ✅ Section : Export/Suppression des données (RGPD)
 
 ### 6.3 Statistiques
 
@@ -385,7 +385,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 | Métrique | Cible | Actuel |
 |----------|-------|---------|
-| Tâches complétées | 100% | ~65% |
+| Tâches complétées | 100% | ~75% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
