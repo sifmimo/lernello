@@ -389,7 +389,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 | Métrique | Cible | Actuel |
 |----------|-------|---------|
-| Tâches complétées | 100% | ~85% |
+| Tâches complétées | 100% | ~90% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
