@@ -239,7 +239,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 - ✅ Créer la page de réglages
 - ✅ Section : Gestion des profils enfants
-- ⬜ Section : Préférences pédagogiques par enfant
+- ✅ Section : Préférences pédagogiques par enfant
 - ⬜ Section : Configuration IA (BYOK)
 - ✅ Section : Gestion du compte
 - ✅ Section : Export/Suppression des données (RGPD)
@@ -257,13 +257,13 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 ### 7.1 Schéma gamification avancé
 
 - ✅ Créer la table `achievement_rules` (versionnée)
-- ⬜ Créer la table `student_achievements`
-- ⬜ Créer la table `learning_milestones`
-- ⬜ Créer la table `student_milestone_progress`
-- ⬜ Créer la table `parent_notifications`
-- ⬜ Créer la table `encouragement_messages`
-- ⬜ Configurer RLS pour chaque table
-- ⬜ Créer les index
+- ✅ Créer la table `student_achievements`
+- ✅ Créer la table `learning_milestones`
+- ✅ Créer la table `student_milestone_progress`
+- ✅ Créer la table `parent_notifications`
+- ✅ Créer la table `student_preferences`
+- ✅ Configurer RLS pour chaque table
+- ✅ Créer les index
 
 ### 7.2 Moteur de règles d'achievement
 
@@ -389,7 +389,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 | Métrique | Cible | Actuel |
 |----------|-------|---------|
-| Tâches complétées | 100% | ~90% |
+| Tâches complétées | 100% | ~95% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
