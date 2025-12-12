@@ -5,14 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   User, 
-  Globe, 
-  Bell, 
   Shield, 
-  Trash2,
   ChevronRight,
   Download,
   LogOut,
-  Settings
+  Settings,
+  Cpu,
+  Globe
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -186,6 +185,16 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3">
               <Settings className="h-5 w-5 text-gray-400" />
               <span className="text-gray-700">Préférences pédagogiques</span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </Link>
+          <Link
+            href="/settings/ai"
+            className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-3">
+              <Cpu className="h-5 w-5 text-gray-400" />
+              <span className="text-gray-700">Configuration IA (BYOK)</span>
             </div>
             <ChevronRight className="h-5 w-5 text-gray-400" />
           </Link>
