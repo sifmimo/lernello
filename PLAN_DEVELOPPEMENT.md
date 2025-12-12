@@ -1,7 +1,7 @@
 # 📋 Plan de Développement — Lernello
 
-> **Dernière mise à jour** : 2024-12-12  
-> **Statut global** : 🔴 Non démarré
+> **Dernière mise à jour** : 2025-12-12  
+> **Statut global** : 🟡 Phase 0 complétée
 
 ---
 
@@ -25,21 +25,21 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 0.1 Environnement de développement
 
-- ⬜ Créer le repository GitHub
-- ⬜ Configurer le projet Supabase (via MCP)
-- ⬜ Créer le `docker-compose.yml` pour le développement local
-- ⬜ Créer le `Dockerfile.dev`
-- ⬜ Configurer les variables d'environnement (`.env.example`)
-- ⬜ Vérifier que Docker fonctionne correctement
+- ✅ Créer le repository GitHub
+- ✅ Configurer le projet Supabase (via MCP)
+- ✅ Créer le `docker-compose.yml` pour le développement local
+- ✅ Créer le `Dockerfile.dev`
+- ✅ Configurer les variables d'environnement (`.env.example`)
+- ✅ Vérifier que Docker fonctionne correctement
 
 ### 0.2 Initialisation Next.js
 
-- ⬜ Initialiser le projet Next.js 15 avec TypeScript (dans Docker)
+- ✅ Initialiser le projet Next.js 15 avec TypeScript (dans Docker)
 - ⬜ Configurer ESLint + Prettier
-- ⬜ Configurer TailwindCSS
+- ✅ Configurer TailwindCSS
 - ⬜ Installer et configurer shadcn/ui
-- ⬜ Configurer la structure des dossiers (`src/`)
-- ⬜ Créer le fichier `next.config.js` avec les headers de sécurité
+- ✅ Configurer la structure des dossiers (`src/`)
+- ✅ Créer le fichier `next.config.js` avec les headers de sécurité
 
 ### 0.3 CI/CD
 
@@ -53,23 +53,23 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 1.1 Schéma Supabase
 
-- ⬜ Créer la table `users`
-- ⬜ Créer la table `student_profiles`
-- ⬜ Créer la table `parent_student_links`
-- ⬜ Créer la table `user_ai_settings` (clés API personnalisées)
-- ⬜ Configurer les politiques RLS pour chaque table
-- ⬜ Créer les index nécessaires
+- ✅ Créer la table `users`
+- ✅ Créer la table `student_profiles`
+- ✅ Créer la table `parent_student_links`
+- ✅ Créer la table `user_ai_settings` (clés API personnalisées)
+- ✅ Configurer les politiques RLS pour chaque table
+- ✅ Créer les index nécessaires
 
 ### 1.2 Authentification
 
-- ⬜ Configurer Supabase Auth
-- ⬜ Implémenter l'inscription parent (email/password)
-- ⬜ Implémenter la connexion
-- ⬜ Implémenter la déconnexion
+- ✅ Configurer Supabase Auth
+- ✅ Implémenter l'inscription parent (email/password)
+- ✅ Implémenter la connexion
+- ✅ Implémenter la déconnexion
 - ⬜ Implémenter la réinitialisation de mot de passe
 - ⬜ Configurer OAuth Google (optionnel Phase 1)
-- ⬜ Créer le middleware d'authentification Next.js
-- ⬜ Créer les pages auth (`/login`, `/register`, `/forgot-password`)
+- ✅ Créer le middleware d'authentification Next.js
+- ✅ Créer les pages auth (`/login`, `/register`, `/forgot-password`)
 
 ### 1.3 Gestion des profils
 
@@ -84,13 +84,13 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 2.1 Schéma contenu pédagogique
 
-- ⬜ Créer la table `subjects`
-- ⬜ Créer la table `domains`
-- ⬜ Créer la table `skills`
-- ⬜ Créer la table `exercises`
-- ⬜ Créer la table `exercise_translations`
-- ⬜ Configurer les politiques RLS
-- ⬜ Créer les index
+- ✅ Créer la table `subjects`
+- ✅ Créer la table `domains`
+- ✅ Créer la table `skills`
+- ✅ Créer la table `exercises`
+- ✅ Créer la table `exercise_translations`
+- ✅ Configurer les politiques RLS
+- ✅ Créer les index
 
 ### 2.2 Seed data — Mathématiques Primaire
 
