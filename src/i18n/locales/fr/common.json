@@ -1,0 +1,72 @@
+{
+  "app": {
+    "name": "Lernello",
+    "tagline": "Apprendre autrement"
+  },
+  "nav": {
+    "home": "Accueil",
+    "dashboard": "Tableau de bord",
+    "learn": "Apprendre",
+    "settings": "Réglages",
+    "login": "Connexion",
+    "register": "Créer un compte",
+    "logout": "Déconnexion"
+  },
+  "subjects": {
+    "math": "Mathématiques"
+  },
+  "domains": {
+    "numbers": "Nombres et numération",
+    "numbers_desc": "Compter, comparer et ordonner les nombres",
+    "calculation": "Calcul",
+    "calculation_desc": "Addition, soustraction et opérations",
+    "geometry": "Géométrie",
+    "geometry_desc": "Formes, figures et espace",
+    "measures": "Mesures",
+    "measures_desc": "Longueurs, masses et temps",
+    "problems": "Résolution de problèmes",
+    "problems_desc": "Raisonnement et logique"
+  },
+  "skills": {
+    "count_to_10": "Compter jusqu'à 10",
+    "count_to_10_desc": "Réciter et dénombrer jusqu'à 10",
+    "count_to_20": "Compter jusqu'à 20",
+    "count_to_20_desc": "Réciter et dénombrer jusqu'à 20",
+    "count_to_100": "Compter jusqu'à 100",
+    "count_to_100_desc": "Réciter et dénombrer jusqu'à 100",
+    "compare_numbers": "Comparer des nombres",
+    "compare_numbers_desc": "Utiliser les signes < > =",
+    "order_numbers": "Ordonner des nombres",
+    "order_numbers_desc": "Ranger du plus petit au plus grand",
+    "tens_units": "Dizaines et unités",
+    "tens_units_desc": "Décomposer un nombre",
+    "add_to_5": "Additions jusqu'à 5",
+    "add_to_5_desc": "Calculer des sommes jusqu'à 5",
+    "add_to_10": "Additions jusqu'à 10",
+    "add_to_10_desc": "Calculer des sommes jusqu'à 10",
+    "subtract_to_5": "Soustractions jusqu'à 5",
+    "subtract_to_5_desc": "Calculer des différences jusqu'à 5",
+    "subtract_to_10": "Soustractions jusqu'à 10",
+    "subtract_to_10_desc": "Calculer des différences jusqu'à 10",
+    "add_to_20": "Additions jusqu'à 20",
+    "add_to_20_desc": "Calculer des sommes jusqu'à 20",
+    "doubles": "Les doubles",
+    "doubles_desc": "Connaître les doubles jusqu'à 10"
+  },
+  "achievements": {
+    "first_exercise": "Premier pas",
+    "first_exercise_desc": "Tu as complété ton premier exercice !",
+    "five_correct": "En route !",
+    "five_correct_desc": "5 bonnes réponses d'affilée",
+    "first_skill": "Compétence acquise",
+    "first_skill_desc": "Tu maîtrises ta première compétence",
+    "week_streak": "Une semaine d'apprentissage",
+    "week_streak_desc": "Tu as appris 7 jours de suite"
+  },
+  "milestones": {
+    "numbers_master": "Maître des nombres",
+    "numbers_master_desc": "Tu maîtrises tous les nombres !",
+    "first_domain": "Premier domaine",
+    "first_domain_desc": "Tu as complété un domaine entier"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "app": {
+    "name": "ليرنيلو",
+    "tagline": "تعلّم بطريقة مختلفة"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "learn": "تعلّم",
+    "settings": "الإعدادات",
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "logout": "تسجيل الخروج"
+  },
+  "subjects": {
+    "math": "الرياضيات"
+  },
+  "domains": {
+    "numbers": "الأعداد",
+    "numbers_desc": "العد والمقارنة وترتيب الأعداد",
+    "calculation": "الحساب",
+    "calculation_desc": "الجمع والطرح والعمليات",
+    "geometry": "الهندسة",
+    "geometry_desc": "الأشكال والفضاء",
+    "measures": "القياسات",
+    "measures_desc": "الطول والوزن والوقت",
+    "problems": "حل المشكلات",
+    "problems_desc": "التفكير والمنطق"
+  },
+  "skills": {
+    "count_to_10": "العد حتى 10",
+    "count_to_10_desc": "قراءة وعد الأرقام حتى 10",
+    "count_to_20": "العد حتى 20",
+    "count_to_20_desc": "قراءة وعد الأرقام حتى 20",
+    "count_to_100": "العد حتى 100",
+    "count_to_100_desc": "قراءة وعد الأرقام حتى 100",
+    "compare_numbers": "مقارنة الأعداد",
+    "compare_numbers_desc": "استخدام علامات < > =",
+    "order_numbers": "ترتيب الأعداد",
+    "order_numbers_desc": "الترتيب من الأصغر إلى الأكبر",
+    "tens_units": "العشرات والآحاد",
+    "tens_units_desc": "تحليل الأعداد",
+    "add_to_5": "الجمع حتى 5",
+    "add_to_5_desc": "حساب المجموع حتى 5",
+    "add_to_10": "الجمع حتى 10",
+    "add_to_10_desc": "حساب المجموع حتى 10",
+    "subtract_to_5": "الطرح حتى 5",
+    "subtract_to_5_desc": "حساب الفرق حتى 5",
+    "subtract_to_10": "الطرح حتى 10",
+    "subtract_to_10_desc": "حساب الفرق حتى 10",
+    "add_to_20": "الجمع حتى 20",
+    "add_to_20_desc": "حساب المجموع حتى 20",
+    "doubles": "المضاعفات",
+    "doubles_desc": "معرفة المضاعفات حتى 10"
+  },
+  "achievements": {
+    "first_exercise": "الخطوة الأولى",
+    "first_exercise_desc": "أكملت تمرينك الأول!",
+    "five_correct": "في الطريق!",
+    "five_correct_desc": "5 إجابات صحيحة متتالية",
+    "first_skill": "مهارة مكتسبة",
+    "first_skill_desc": "أتقنت مهارتك الأولى",
+    "week_streak": "أسبوع من التعلم",
+    "week_streak_desc": "تعلمت 7 أيام متتالية"
+  },
+  "milestones": {
+    "numbers_master": "سيد الأعداد",
+    "numbers_master_desc": "أتقنت جميع الأعداد!",
+    "first_domain": "المجال الأول",
+    "first_domain_desc": "أكملت مجالاً كاملاً"
+  }
+}

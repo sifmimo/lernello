@@ -1,0 +1,72 @@
+{
+  "app": {
+    "name": "Lernello",
+    "tagline": "Learn differently"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "learn": "Learn",
+    "settings": "Settings",
+    "login": "Login",
+    "register": "Sign up",
+    "logout": "Logout"
+  },
+  "subjects": {
+    "math": "Mathematics"
+  },
+  "domains": {
+    "numbers": "Numbers",
+    "numbers_desc": "Count, compare and order numbers",
+    "calculation": "Calculation",
+    "calculation_desc": "Addition, subtraction and operations",
+    "geometry": "Geometry",
+    "geometry_desc": "Shapes, figures and space",
+    "measures": "Measures",
+    "measures_desc": "Length, weight and time",
+    "problems": "Problem solving",
+    "problems_desc": "Reasoning and logic"
+  },
+  "skills": {
+    "count_to_10": "Count to 10",
+    "count_to_10_desc": "Recite and count up to 10",
+    "count_to_20": "Count to 20",
+    "count_to_20_desc": "Recite and count up to 20",
+    "count_to_100": "Count to 100",
+    "count_to_100_desc": "Recite and count up to 100",
+    "compare_numbers": "Compare numbers",
+    "compare_numbers_desc": "Use < > = signs",
+    "order_numbers": "Order numbers",
+    "order_numbers_desc": "Sort from smallest to largest",
+    "tens_units": "Tens and units",
+    "tens_units_desc": "Break down a number",
+    "add_to_5": "Add up to 5",
+    "add_to_5_desc": "Calculate sums up to 5",
+    "add_to_10": "Add up to 10",
+    "add_to_10_desc": "Calculate sums up to 10",
+    "subtract_to_5": "Subtract up to 5",
+    "subtract_to_5_desc": "Calculate differences up to 5",
+    "subtract_to_10": "Subtract up to 10",
+    "subtract_to_10_desc": "Calculate differences up to 10",
+    "add_to_20": "Add up to 20",
+    "add_to_20_desc": "Calculate sums up to 20",
+    "doubles": "Doubles",
+    "doubles_desc": "Know doubles up to 10"
+  },
+  "achievements": {
+    "first_exercise": "First step",
+    "first_exercise_desc": "You completed your first exercise!",
+    "five_correct": "On the way!",
+    "five_correct_desc": "5 correct answers in a row",
+    "first_skill": "Skill acquired",
+    "first_skill_desc": "You mastered your first skill",
+    "week_streak": "A week of learning",
+    "week_streak_desc": "You learned 7 days in a row"
+  },
+  "milestones": {
+    "numbers_master": "Numbers master",
+    "numbers_master_desc": "You mastered all numbers!",
+    "first_domain": "First domain",
+    "first_domain_desc": "You completed an entire domain"
+  }
+}
