@@ -246,8 +246,8 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 6.3 Statistiques
 
-- ⬜ Créer les graphiques de progression dans le temps
-- ⬜ Créer la vue détaillée par compétence
+- ✅ Créer les graphiques de progression dans le temps
+- ✅ Créer la vue détaillée par compétence
 - ⬜ Implémenter le rapport hebdomadaire (optionnel)
 
 ---
@@ -266,6 +266,10 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 - ⬜ Créer les index
 
 ### 7.2 Moteur de règles d'achievement
+
+- ✅ Créer les Server Actions achievements
+- ✅ Implémenter checkAndGrantAchievements
+- ✅ Créer la page /achievements
 
 - ⬜ Créer le service d'évaluation des règles (trigger_conditions)
 - ⬜ Implémenter les différents types de triggers (skill_mastery, streak, time_goal)
@@ -385,7 +389,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 | Métrique | Cible | Actuel |
 |----------|-------|---------|
-| Tâches complétées | 100% | ~80% |
+| Tâches complétées | 100% | ~85% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
