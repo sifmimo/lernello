@@ -154,7 +154,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 - ✅ Créer le composant de base `Exercise`
 - ✅ Implémenter le type QCM
-- ⬜ Implémenter le type texte à trous
+- ✅ Implémenter le type texte à trous
 - ⬜ Implémenter le type drag & drop
 - ✅ Implémenter le type saisie libre
 - ✅ Créer les animations de feedback (correct/incorrect)
