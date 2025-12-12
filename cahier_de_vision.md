@@ -161,30 +161,70 @@ Objectif :
 
 ---
 
-## 9. Rôle de l’intelligence artificielle
+## 9. Rôle de l'intelligence artificielle
 
-### 9.1 Génération et adaptation raisonnée des contenus
+### 9.1 Système auto-alimenté de contenus
 
-L’IA est utilisée pour :
-- générer des contenus structurés par compétence
-- proposer des exercices progressifs
-- adapter :
-  - la difficulté
-  - le langage
-  - le style pédagogique
-  - la méthode choisie
+La plateforme repose sur un **système auto-alimenté** :
 
-⚠️ Principe clé :  
-**L’IA est un moteur d’adaptation, pas un générateur permanent incontrôlé.**
+**Principe de fonctionnement :**
+1. Le parcours est basé sur des thèmes tirés du programme scolaire du pays sélectionné
+2. Si le cours/exercice demandé n'existe pas en base, l'IA le génère automatiquement
+3. Le contenu généré est enregistré en base de données pour réutilisation
+4. À force d'utilisation, la base de contenus s'enrichit naturellement
 
-### 9.2 Adaptation au profil de l’élève
+**Critères de génération :**
+- Langue de l'élève
+- Méthode pédagogique choisie
+- Niveau de difficulté adapté
+- Âge de l'élève
+- Style pédagogique (ludique, structuré, etc.)
 
-L’IA prend en compte :
+**Gestion de la qualité :**
+- L'administrateur peut supprimer les contenus de mauvaise qualité
+- Système de notation par les enfants et parents
+- Les contenus mal notés sont signalés pour révision
+
+### 9.2 Évaluation continue et parcours adaptatif
+
+L'IA évalue le niveau de l'enfant **en continu** :
+- Analyse des réponses (correctes/incorrectes)
+- Temps de réponse
+- Nombre de tentatives
+- Utilisation des indices
+
+**Algorithme de progression :**
+1. Après chaque exercice, le niveau est recalculé
+2. L'IA détermine le cours/exercice suivant optimal
+3. Si ce contenu n'existe pas → génération automatique
+4. Le cycle se répète, enrichissant la base
+
+### 9.3 Optimisation de la consommation de tokens
+
+**Stratégie multi-modèles :**
+
+| Tâche | Modèle | Justification |
+|-------|--------|---------------|
+| Messages simples (encouragements) | gpt-4o-mini | Rapide, économique |
+| Indices progressifs | gpt-4o-mini | Contexte limité |
+| Génération de cours/exercices | gpt-4o / claude-3-5-sonnet | Qualité maximale requise |
+| Évaluation de niveau | gpt-4o-mini | Calcul simple |
+
+**Règles d'économie :**
+- Cache des contenus générés en base
+- Réutilisation prioritaire des contenus existants
+- Génération uniquement si nécessaire
+- Batch des requêtes similaires
+
+### 9.4 Adaptation au profil de l'élève
+
+L'IA prend en compte :
 - niveau réel par compétence
 - méthode pédagogique
 - langue
 - âge estimé
-- historique d’apprentissage
+- historique d'apprentissage
+- préférences détectées (types d'exercices réussis)
 
 ---
 

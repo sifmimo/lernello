@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle, Star, Loader2, Wand2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getAIHint, getEncouragement } from '@/server/actions/ai';
+import { fetchOrGenerateExercise, submitAnswerAndGetNext, rateExercise } from '@/server/actions/content';
 
 interface Exercise {
   id: string;
@@ -53,6 +54,14 @@ export default function SkillExercisePage() {
   const [aiEncouragement, setAiEncouragement] = useState<string | null>(null);
   const [loadingHint, setLoadingHint] = useState(false);
   const [hintLevel, setHintLevel] = useState(0);
+  const [skillId, setSkillId] = useState<string | null>(null);
+  const [isAIGenerated, setIsAIGenerated] = useState(false);
+  const [loadingNext, setLoadingNext] = useState(false);
+  const [showRating, setShowRating] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+  const [exerciseStartTime, setExerciseStartTime] = useState<Date>(new Date());
+  const [hintsUsedCount, setHintsUsedCount] = useState(0);
+  const [progressReason, setProgressReason] = useState<string | null>(null);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -61,7 +70,7 @@ export default function SkillExercisePage() {
       return;
     }
     
-    const fetchExercises = async () => {
+    const loadFirstExercise = async () => {
       const supabase = createClient();
       
       const { data: skillData } = await supabase
@@ -75,22 +84,21 @@ export default function SkillExercisePage() {
         return;
       }
 
-      const { data: exercisesData } = await supabase
-        .from('exercises')
-        .select('id, type, content, difficulty')
-        .eq('skill_id', skillData.id)
-        .eq('is_validated', true)
-        .order('difficulty', { ascending: true })
-        .limit(5);
+      setSkillId(skillData.id);
 
-      if (exercisesData && exercisesData.length > 0) {
-        setExercises(exercisesData as Exercise[]);
-        setStats({ total: exercisesData.length, correct: 0, startTime: new Date() });
+      // Utiliser le système auto-alimenté
+      const result = await fetchOrGenerateExercise(skillData.id, profileId);
+      
+      if (result.success && result.exercise) {
+        setExercises([result.exercise as Exercise]);
+        setIsAIGenerated(result.isAIGenerated || false);
+        setStats({ total: 1, correct: 0, startTime: new Date() });
+        setExerciseStartTime(new Date());
       }
       setLoading(false);
     };
     
-    fetchExercises();
+    loadFirstExercise();
   }, [router, skillCode]);
 
   const currentExercise = exercises[currentIndex];
@@ -189,8 +197,29 @@ export default function SkillExercisePage() {
     }
   };
 
-  const nextExercise = () => {
-    if (currentIndex < exercises.length - 1) {
+  const nextExercise = async () => {
+    const profileId = localStorage.getItem('activeProfileId');
+    if (!profileId || !skillId || !currentExercise) return;
+
+    setLoadingNext(true);
+    
+    // Calculer le temps passé sur l'exercice
+    const timeSpent = Math.round((new Date().getTime() - exerciseStartTime.getTime()) / 1000);
+    
+    // Soumettre la réponse et obtenir le prochain exercice
+    const result = await submitAnswerAndGetNext(
+      profileId,
+      currentExercise.id,
+      skillId,
+      isCorrect,
+      timeSpent,
+      hintsUsedCount,
+      { selected: selectedAnswer, input: inputAnswer }
+    );
+
+    if (result.success && result.nextExercise) {
+      // Ajouter le nouvel exercice
+      setExercises(prev => [...prev, result.nextExercise as Exercise]);
       setCurrentIndex(prev => prev + 1);
       setSelectedAnswer(null);
       setInputAnswer('');
@@ -201,14 +230,29 @@ export default function SkillExercisePage() {
       setAiHint(null);
       setAiEncouragement(null);
       setHintLevel(0);
+      setHintsUsedCount(0);
+      setExerciseStartTime(new Date());
+      setProgressReason(result.reason || null);
+      setShowRating(false);
+      setUserRating(0);
+      
+      // Mettre à jour le skillId si changé
+      if (result.nextSkillId && result.nextSkillId !== skillId) {
+        setSkillId(result.nextSkillId);
+      }
+      
+      setStats(prev => ({ ...prev, total: prev.total + 1 }));
     } else {
       setSessionComplete(true);
     }
+    
+    setLoadingNext(false);
   };
 
   const requestAIHint = async () => {
     if (!currentExercise || loadingHint) return;
     setLoadingHint(true);
+    setHintsUsedCount(prev => prev + 1);
     
     try {
       const correctAnswer = currentExercise.type === 'qcm' 
@@ -226,15 +270,23 @@ export default function SkillExercisePage() {
         setHintLevel(prev => prev + 1);
         setShowHint(true);
       } else {
-        setAiHint(currentExercise.content.hint || 'Réfléchis bien \u00e0 la question...');
+        setAiHint(currentExercise.content.hint || 'Réfléchis bien à la question...');
         setShowHint(true);
       }
     } catch {
-      setAiHint(currentExercise.content.hint || 'Réfléchis bien \u00e0 la question...');
+      setAiHint(currentExercise.content.hint || 'Réfléchis bien à la question...');
       setShowHint(true);
     }
     
     setLoadingHint(false);
+  };
+
+  const handleRating = async (rating: number) => {
+    const profileId = localStorage.getItem('activeProfileId');
+    if (!profileId || !currentExercise) return;
+    
+    setUserRating(rating);
+    await rateExercise(currentExercise.id, profileId, rating, null, 'student');
   };
 
   const moveDragItem = (fromIndex: number, toIndex: number) => {
@@ -373,13 +425,27 @@ export default function SkillExercisePage() {
 
       <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="rounded-2xl bg-white p-8 shadow-xl">
-          {/* AI Badge - visible indicator that AI can generate personalized exercises */}
-          <div className="mb-4 flex justify-center">
+          {/* AI Badge - visible indicator */}
+          <div className="mb-4 flex flex-wrap justify-center gap-2">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
               <Sparkles className="h-3.5 w-3.5" />
               <span>Exercice adaptatif</span>
             </div>
+            {isAIGenerated && (
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
+                <Wand2 className="h-3.5 w-3.5" />
+                <span>Généré par l'IA</span>
+              </div>
+            )}
           </div>
+          
+          {/* Progress reason from AI */}
+          {progressReason && (
+            <div className="mb-4 rounded-lg bg-blue-50 p-3 text-center text-sm text-blue-700">
+              <Bot className="inline h-4 w-4 mr-1" />
+              {progressReason}
+            </div>
+          )}
           
           <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
             {currentExercise.content.question}
@@ -589,6 +655,31 @@ export default function SkillExercisePage() {
                   </div>
                 </div>
               )}
+              
+              {/* Rating system */}
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 text-center mb-2">Cet exercice t'a plu ?</p>
+                <div className="flex justify-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => handleRating(star)}
+                      className="p-1 transition-transform hover:scale-110"
+                    >
+                      <Star
+                        className={`h-6 w-6 ${
+                          star <= userRating
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300 hover:text-yellow-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                {userRating > 0 && (
+                  <p className="text-xs text-center text-green-600 mt-1">Merci pour ton avis !</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -604,10 +695,20 @@ export default function SkillExercisePage() {
             ) : (
               <button
                 onClick={nextExercise}
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-lg font-medium text-white hover:bg-indigo-700"
+                disabled={loadingNext}
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-lg font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
-                {currentIndex < exercises.length - 1 ? 'Suivant' : 'Terminer'}
-                <ArrowRight className="h-5 w-5" />
+                {loadingNext ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Chargement...
+                  </>
+                ) : (
+                  <>
+                    Suivant
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
               </button>
             )}
           </div>
