@@ -1,0 +1,82 @@
+{
+  "common": {
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "finish": "إنهاء",
+    "confirm": "تأكيد",
+    "close": "إغلاق"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "learn": "تعلّم",
+    "profiles": "الملفات الشخصية",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "loginButton": "تسجيل الدخول",
+    "registerButton": "إنشاء حسابي",
+    "noAccount": "ليس لديك حساب؟",
+    "hasAccount": "لديك حساب بالفعل؟"
+  },
+  "dashboard": {
+    "welcome": "مرحباً",
+    "continuelearning": "متابعة التعلم",
+    "progress": "التقدم",
+    "subjects": "المواد",
+    "recentActivity": "النشاط الأخير"
+  },
+  "learn": {
+    "chooseSubject": "اختر مادة",
+    "chooseDomain": "اختر مجالاً",
+    "chooseSkill": "اختر مهارة",
+    "startExercise": "ابدأ",
+    "mastery": "الإتقان",
+    "locked": "مقفل",
+    "completed": "مكتمل"
+  },
+  "exercise": {
+    "question": "سؤال",
+    "check": "تحقق",
+    "correct": "أحسنت، هذا صحيح!",
+    "incorrect": "هذه ليست الإجابة الصحيحة",
+    "tryAgain": "حاول مرة أخرى",
+    "hint": "تلميح",
+    "score": "النتيجة",
+    "time": "الوقت"
+  },
+  "profiles": {
+    "selectProfile": "اختر ملفك الشخصي",
+    "createProfile": "إنشاء ملف شخصي",
+    "editProfile": "تعديل الملف الشخصي",
+    "deleteProfile": "حذف الملف الشخصي",
+    "profileName": "الاسم الأول",
+    "birthYear": "سنة الميلاد",
+    "parentAccess": "وصول الوالدين",
+    "enterPin": "أدخل رمز PIN"
+  },
+  "subjects": {
+    "math": "الرياضيات"
+  },
+  "domains": {
+    "numbers": "الأعداد",
+    "calculation": "الحساب",
+    "geometry": "الهندسة",
+    "measures": "القياسات",
+    "problems": "المسائل"
+  }
+}

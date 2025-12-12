@@ -1,0 +1,82 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "finish": "Terminer",
+    "confirm": "Confirmer",
+    "close": "Fermer"
+  },
+  "nav": {
+    "home": "Accueil",
+    "learn": "Apprendre",
+    "profiles": "Profils",
+    "settings": "Paramètres",
+    "logout": "Déconnexion"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "Créer un compte",
+    "forgotPassword": "Mot de passe oublié ?",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "loginButton": "Se connecter",
+    "registerButton": "Créer mon compte",
+    "noAccount": "Pas encore de compte ?",
+    "hasAccount": "Déjà un compte ?"
+  },
+  "dashboard": {
+    "welcome": "Bienvenue",
+    "continuelearning": "Continuer l'apprentissage",
+    "progress": "Progression",
+    "subjects": "Matières",
+    "recentActivity": "Activité récente"
+  },
+  "learn": {
+    "chooseSubject": "Choisis une matière",
+    "chooseDomain": "Choisis un domaine",
+    "chooseSkill": "Choisis une compétence",
+    "startExercise": "Commencer",
+    "mastery": "Maîtrise",
+    "locked": "Verrouillé",
+    "completed": "Terminé"
+  },
+  "exercise": {
+    "question": "Question",
+    "check": "Vérifier",
+    "correct": "Bravo, c'est correct !",
+    "incorrect": "Ce n'est pas la bonne réponse",
+    "tryAgain": "Réessayer",
+    "hint": "Indice",
+    "score": "Score",
+    "time": "Temps"
+  },
+  "profiles": {
+    "selectProfile": "Sélectionne ton profil",
+    "createProfile": "Créer un profil",
+    "editProfile": "Modifier le profil",
+    "deleteProfile": "Supprimer le profil",
+    "profileName": "Prénom",
+    "birthYear": "Année de naissance",
+    "parentAccess": "Accès parent",
+    "enterPin": "Entre le code PIN"
+  },
+  "subjects": {
+    "math": "Mathématiques"
+  },
+  "domains": {
+    "numbers": "Nombres",
+    "calculation": "Calcul",
+    "geometry": "Géométrie",
+    "measures": "Mesures",
+    "problems": "Problèmes"
+  }
+}

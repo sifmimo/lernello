@@ -1,7 +1,7 @@
 # 📋 Plan de Développement — Lernello
 
 > **Dernière mise à jour** : 2025-12-12  
-> **Statut global** : 🟡 Phase 0 complétée
+> **Statut global** : 🟡 Phase 3 en cours
 
 ---
 
@@ -35,9 +35,9 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 ### 0.2 Initialisation Next.js
 
 - ✅ Initialiser le projet Next.js 15 avec TypeScript (dans Docker)
-- ⬜ Configurer ESLint + Prettier
+- ✅ Configurer ESLint + Prettier
 - ✅ Configurer TailwindCSS
-- ⬜ Installer et configurer shadcn/ui
+- ✅ Installer et configurer shadcn/ui
 - ✅ Configurer la structure des dossiers (`src/`)
 - ✅ Créer le fichier `next.config.js` avec les headers de sécurité
 
@@ -66,17 +66,17 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 - ✅ Implémenter l'inscription parent (email/password)
 - ✅ Implémenter la connexion
 - ✅ Implémenter la déconnexion
-- ⬜ Implémenter la réinitialisation de mot de passe
+- ✅ Implémenter la réinitialisation de mot de passe
 - ⬜ Configurer OAuth Google (optionnel Phase 1)
 - ✅ Créer le middleware d'authentification Next.js
 - ✅ Créer les pages auth (`/login`, `/register`, `/forgot-password`)
 
 ### 1.3 Gestion des profils
 
-- ⬜ Créer le flux de création de profil élève
-- ⬜ Implémenter le switch entre profils élèves
-- ⬜ Créer le système de code PIN parental
-- ⬜ Créer la page de gestion des profils
+- ✅ Créer le flux de création de profil élève
+- ✅ Implémenter le switch entre profils élèves
+- ✅ Créer le système de code PIN parental
+- ✅ Créer la page de gestion des profils
 
 ---
 
@@ -94,22 +94,22 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 2.2 Seed data — Mathématiques Primaire
 
-- ⬜ Définir la structure des domaines (Nombres, Calcul, Géométrie, Mesures, Problèmes)
-- ⬜ Créer les compétences pour chaque domaine (niveau CP)
-- ⬜ Créer les compétences pour chaque domaine (niveau CE1)
-- ⬜ Créer les compétences pour chaque domaine (niveau CE2)
-- ⬜ Créer les compétences pour chaque domaine (niveau CM1)
-- ⬜ Créer les compétences pour chaque domaine (niveau CM2)
+- ✅ Définir la structure des domaines (Nombres, Calcul, Géométrie, Mesures, Problèmes)
+- ✅ Créer les compétences pour chaque domaine (niveau CP)
+- ✅ Créer les compétences pour chaque domaine (niveau CE1)
+- ✅ Créer les compétences pour chaque domaine (niveau CE2)
+- ✅ Créer les compétences pour chaque domaine (niveau CM1)
+- ✅ Créer les compétences pour chaque domaine (niveau CM2)
 - ⬜ Définir les prérequis entre compétences
-- ⬜ Créer le script de seed
+- ✅ Créer le script de seed
 
 ### 2.3 API Contenu
 
-- ⬜ Configurer tRPC
-- ⬜ Créer le router `subjects`
-- ⬜ Créer le router `skills`
-- ⬜ Créer le router `exercises`
-- ⬜ Tester les endpoints
+- ✅ Configurer Server Actions (alternative à tRPC)
+- ✅ Créer les actions `subjects`
+- ✅ Créer les actions `skills`
+- ✅ Créer les actions `exercises`
+- ✅ Créer les actions `profiles`
 
 ---
 
@@ -117,26 +117,26 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 3.1 Layout & Navigation
 
-- ⬜ Créer le layout principal élève
-- ⬜ Créer la navigation (header/sidebar)
-- ⬜ Créer le sélecteur de langue (FR/AR/EN)
-- ⬜ Implémenter le support RTL pour l'arabe
-- ⬜ Créer les fichiers de traduction de base
+- ✅ Créer le layout principal élève
+- ✅ Créer la navigation (header/sidebar)
+- ✅ Créer le sélecteur de langue (FR/AR/EN)
+- ✅ Implémenter le support RTL pour l'arabe
+- ✅ Créer les fichiers de traduction de base
 
 ### 3.2 Dashboard élève
 
-- ⬜ Créer la page d'accueil élève
-- ⬜ Afficher la progression globale
-- ⬜ Afficher les domaines disponibles
-- ⬜ Créer le composant de carte domaine
-- ⬜ Créer le bouton "Continuer l'apprentissage"
+- ✅ Créer la page d'accueil élève
+- ✅ Afficher la progression globale
+- ✅ Afficher les domaines disponibles
+- ✅ Créer le composant de carte domaine
+- ✅ Créer le bouton "Continuer l'apprentissage"
 
 ### 3.3 Navigation pédagogique
 
-- ⬜ Créer la page de liste des compétences par domaine
-- ⬜ Créer le composant de carte compétence avec statut
+- ✅ Créer la page de liste des compétences par domaine
+- ✅ Créer le composant de carte compétence avec statut
 - ⬜ Implémenter la visualisation des prérequis
-- ⬜ Créer l'indicateur de maîtrise (0-100%)
+- ✅ Créer l'indicateur de maîtrise (0-100%)
 
 ---
 
@@ -144,20 +144,20 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 4.1 Schéma progression
 
-- ⬜ Créer la table `student_skill_progress`
-- ⬜ Créer la table `exercise_attempts`
-- ⬜ Créer la table `learning_sessions`
-- ⬜ Configurer RLS
-- ⬜ Créer les index
+- ✅ Créer la table `student_skill_progress`
+- ✅ Créer la table `exercise_attempts`
+- ✅ Créer la table `learning_sessions`
+- ✅ Configurer RLS
+- ✅ Créer les index
 
 ### 4.2 Types d'exercices
 
-- ⬜ Créer le composant de base `Exercise`
-- ⬜ Implémenter le type QCM
+- ✅ Créer le composant de base `Exercise`
+- ✅ Implémenter le type QCM
 - ⬜ Implémenter le type texte à trous
 - ⬜ Implémenter le type drag & drop
-- ⬜ Implémenter le type saisie libre
-- ⬜ Créer les animations de feedback (correct/incorrect)
+- ✅ Implémenter le type saisie libre
+- ✅ Créer les animations de feedback (correct/incorrect)
 - ⬜ Implémenter le système d'indices
 
 ### 4.3 Logique de progression
@@ -170,11 +170,11 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 4.4 Interface d'apprentissage
 
-- ⬜ Créer la page d'exercice
-- ⬜ Implémenter le flux question → réponse → feedback
-- ⬜ Créer l'écran de fin de session
-- ⬜ Créer le résumé de session
-- ⬜ Implémenter la sauvegarde automatique de progression
+- ✅ Créer la page d'exercice
+- ✅ Implémenter le flux question → réponse → feedback
+- ✅ Créer l'écran de fin de session
+- ✅ Créer le résumé de session
+- ✅ Implémenter la sauvegarde automatique de progression
 
 ---
 
