@@ -162,11 +162,11 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 ### 4.3 Logique de progression
 
-- ⬜ Implémenter l'algorithme de calcul de maîtrise
-- ⬜ Créer le service de sélection du prochain exercice
+- ✅ Implémenter l'algorithme de calcul de maîtrise
+- ✅ Créer le service de sélection du prochain exercice
 - ⬜ Implémenter la répétition espacée
-- ⬜ Créer le router tRPC `progress`
-- ⬜ Créer le router tRPC `learning`
+- ✅ Créer les Server Actions `progress`
+- ✅ Créer les Server Actions `learning`
 
 ### 4.4 Interface d'apprentissage
 
@@ -384,8 +384,8 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 ## 📊 Métriques de suivi
 
 | Métrique | Cible | Actuel |
-|----------|-------|--------|
-| Tâches complétées | 100% | 0% |
+|----------|-------|---------|
+| Tâches complétées | 100% | ~45% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
