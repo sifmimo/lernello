@@ -16,6 +16,10 @@ interface Exercise {
     answer?: string;
     blanks?: string[];
     text?: string;
+    items?: string[];
+    targets?: string[];
+    correctOrder?: number[];
+    hint?: string;
   };
   difficulty: number;
 }
@@ -42,6 +46,8 @@ export default function SkillExercisePage() {
   const [stats, setStats] = useState<SessionStats>({ total: 0, correct: 0, startTime: new Date() });
   const [inputAnswer, setInputAnswer] = useState('');
   const [fillBlankAnswers, setFillBlankAnswers] = useState<string[]>([]);
+  const [dragDropOrder, setDragDropOrder] = useState<number[]>([]);
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -97,10 +103,15 @@ export default function SkillExercisePage() {
       correct = blanks.every((blank: string, i: number) => 
         fillBlankAnswers[i]?.trim().toLowerCase() === blank.toLowerCase()
       );
+    } else if (currentExercise.type === 'drag_drop') {
+      const correctOrder = currentExercise.content.correctOrder || [];
+      correct = dragDropOrder.length === correctOrder.length &&
+        dragDropOrder.every((val: number, i: number) => val === correctOrder[i]);
     }
 
     setIsCorrect(correct);
     setShowResult(true);
+    setShowHint(false);
 
     if (correct) {
       setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
@@ -108,7 +119,7 @@ export default function SkillExercisePage() {
 
     // Sauvegarder la tentative
     saveAttempt(correct);
-  }, [currentExercise, selectedAnswer, inputAnswer, showResult]);
+  }, [currentExercise, selectedAnswer, inputAnswer, fillBlankAnswers, dragDropOrder, showResult]);
 
   const saveAttempt = async (correct: boolean) => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -170,11 +181,35 @@ export default function SkillExercisePage() {
       setSelectedAnswer(null);
       setInputAnswer('');
       setFillBlankAnswers([]);
+      setDragDropOrder([]);
+      setShowHint(false);
       setShowResult(false);
     } else {
       setSessionComplete(true);
     }
   };
+
+  const moveDragItem = (fromIndex: number, toIndex: number) => {
+    const newOrder = [...dragDropOrder];
+    const [removed] = newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, removed);
+    setDragDropOrder(newOrder);
+  };
+
+  const initDragDrop = useCallback(() => {
+    if (currentExercise?.type === 'drag_drop' && currentExercise.content.items && dragDropOrder.length === 0) {
+      const shuffled = currentExercise.content.items.map((_: string, i: number) => i);
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      setDragDropOrder(shuffled);
+    }
+  }, [currentExercise, dragDropOrder.length]);
+
+  useEffect(() => {
+    initDragDrop();
+  }, [initDragDrop]);
 
   if (loading) {
     return (
@@ -384,6 +419,76 @@ export default function SkillExercisePage() {
             </div>
           )}
 
+          {currentExercise.type === 'drag_drop' && currentExercise.content.items && (
+            <div className="mx-auto max-w-md">
+              <p className="mb-4 text-center text-gray-600">Réorganise les éléments dans le bon ordre</p>
+              <div className="space-y-2">
+                {dragDropOrder.map((itemIndex: number, position: number) => (
+                  <div
+                    key={position}
+                    className={`flex items-center gap-2 rounded-xl border-2 p-4 transition-all ${
+                      showResult
+                        ? currentExercise.content.correctOrder?.[position] === itemIndex
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-red-500 bg-red-50'
+                        : 'border-gray-200 bg-white hover:border-indigo-300'
+                    }`}
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600">
+                      {position + 1}
+                    </span>
+                    <span className="flex-1 text-lg font-medium">
+                      {currentExercise.content.items?.[itemIndex]}
+                    </span>
+                    {!showResult && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => position > 0 && moveDragItem(position, position - 1)}
+                          disabled={position === 0}
+                          className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          onClick={() => position < dragDropOrder.length - 1 && moveDragItem(position, position + 1)}
+                          disabled={position === dragDropOrder.length - 1}
+                          className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {showResult && !isCorrect && currentExercise.content.items && currentExercise.content.correctOrder && (
+                <p className="mt-4 text-center text-lg text-gray-600">
+                  Bon ordre: <strong className="text-green-600">
+                    {currentExercise.content.correctOrder.map((i: number) => currentExercise.content.items?.[i]).join(' → ')}
+                  </strong>
+                </p>
+              )}
+            </div>
+          )}
+
+          {currentExercise.content.hint && !showResult && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => setShowHint(!showHint)}
+                className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800"
+              >
+                <Lightbulb className="h-4 w-4" />
+                {showHint ? 'Masquer l\'indice' : 'Voir un indice'}
+              </button>
+            </div>
+          )}
+
+          {showHint && currentExercise.content.hint && (
+            <div className="mt-3 rounded-lg bg-amber-50 p-4 text-center text-amber-800">
+              💡 {currentExercise.content.hint}
+            </div>
+          )}
+
           {showResult && (
             <div className={`mt-6 flex items-center justify-center gap-3 rounded-xl p-4 ${
               isCorrect ? 'bg-green-50' : 'bg-red-50'
@@ -406,7 +511,7 @@ export default function SkillExercisePage() {
             {!showResult ? (
               <button
                 onClick={checkAnswer}
-                disabled={selectedAnswer === null && inputAnswer === '' && fillBlankAnswers.length === 0}
+                disabled={selectedAnswer === null && inputAnswer === '' && fillBlankAnswers.length === 0 && dragDropOrder.length === 0}
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-lg font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
                 Vérifier
