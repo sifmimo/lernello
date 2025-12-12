@@ -26,6 +26,7 @@ const navigation = [
   { name: 'Accueil', href: '/dashboard', icon: Home },
   { name: 'Apprendre', href: '/learn', icon: BookOpen },
   { name: 'Profils', href: '/profiles', icon: User },
+  { name: 'Espace Parent', href: '/parent', icon: User },
   { name: 'Paramètres', href: '/settings', icon: Settings },
 ];
 
