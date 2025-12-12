@@ -155,10 +155,10 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 - ✅ Créer le composant de base `Exercise`
 - ✅ Implémenter le type QCM
 - ✅ Implémenter le type texte à trous
-- ⬜ Implémenter le type drag & drop
+- ✅ Implémenter le type drag & drop
 - ✅ Implémenter le type saisie libre
 - ✅ Créer les animations de feedback (correct/incorrect)
-- ⬜ Implémenter le système d'indices
+- ✅ Implémenter le système d'indices
 
 ### 4.3 Logique de progression
 
@@ -385,7 +385,7 @@ Développer le MVP de Lernello en 12 semaines avec une approche itérative.
 
 | Métrique | Cible | Actuel |
 |----------|-------|---------|
-| Tâches complétées | 100% | ~45% |
+| Tâches complétées | 100% | ~65% |
 | Couverture tests | > 80% | - |
 | Lighthouse Score | > 90 | - |
 | Accessibilité | AA | - |
