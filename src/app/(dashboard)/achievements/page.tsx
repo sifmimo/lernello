@@ -52,24 +52,32 @@ const categoryColors: Record<string, string> = {
 
 const achievementNames: Record<string, string> = {
   first_correct: 'Premier pas',
+  first_exercise: 'Premier pas',
   streak_5: 'Série de 5',
+  five_correct: 'En route !',
   streak_10: 'Série de 10',
   skill_mastered: 'Maître',
+  first_skill: 'Compétence acquise',
   domain_complete: 'Explorateur',
   perfect_session: 'Parfait',
   early_bird: 'Lève-tôt',
   night_owl: 'Noctambule',
+  week_streak: 'Une semaine',
 };
 
 const achievementDescriptions: Record<string, string> = {
   first_correct: 'Première bonne réponse',
+  first_exercise: 'Tu as complété ton premier exercice !',
   streak_5: '5 bonnes réponses d\'affilée',
+  five_correct: '5 bonnes réponses d\'affilée',
   streak_10: '10 bonnes réponses d\'affilée',
   skill_mastered: 'Maîtriser une compétence à 100%',
+  first_skill: 'Tu maîtrises ta première compétence',
   domain_complete: 'Terminer tous les exercices d\'un domaine',
   perfect_session: 'Session sans erreur',
   early_bird: 'Étudier avant 8h',
   night_owl: 'Étudier après 20h',
+  week_streak: 'Tu as appris 7 jours de suite',
 };
 
 export default function AchievementsPage() {

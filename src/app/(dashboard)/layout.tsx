@@ -14,24 +14,16 @@ import {
   Globe,
   ChevronDown,
   Trophy,
-  Bell
+  Bell,
+  Users
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useI18n } from '@/i18n/context';
 
 const languages = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'ar', name: 'العربية', flag: '🇲🇦', dir: 'rtl' },
+  { code: 'ar', name: 'العربية', flag: '🇲🇦' },
   { code: 'en', name: 'English', flag: '🇬🇧' },
-];
-
-const navigation = [
-  { name: 'Accueil', href: '/dashboard', icon: Home },
-  { name: 'Apprendre', href: '/learn', icon: BookOpen },
-  { name: 'Récompenses', href: '/achievements', icon: Trophy },
-  { name: 'Profils', href: '/profiles', icon: User },
-  { name: 'Espace Parent', href: '/parent', icon: User },
-  { name: 'Notifications', href: '/parent/notifications', icon: Bell },
-  { name: 'Paramètres', href: '/settings', icon: Settings },
 ];
 
 export default function DashboardLayout({
@@ -41,30 +33,29 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t, lang, setLang } = useI18n();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [currentLang, setCurrentLang] = useState('fr');
   const [profileName, setProfileName] = useState('');
 
+  const navigation = [
+    { name: t('nav.home'), href: '/dashboard', icon: Home },
+    { name: t('nav.learn'), href: '/learn', icon: BookOpen },
+    { name: t('nav.achievements'), href: '/achievements', icon: Trophy },
+    { name: t('nav.profiles'), href: '/profiles', icon: User },
+    { name: t('nav.parent'), href: '/parent', icon: Users },
+    { name: t('nav.notifications'), href: '/parent/notifications', icon: Bell },
+    { name: t('nav.settings'), href: '/settings', icon: Settings },
+  ];
+
   useEffect(() => {
-    const savedLang = localStorage.getItem('preferredLanguage') || 'fr';
-    setCurrentLang(savedLang);
-    
     const name = localStorage.getItem('activeProfileName');
     if (name) setProfileName(name);
   }, []);
 
   const handleLanguageChange = (langCode: string) => {
-    setCurrentLang(langCode);
-    localStorage.setItem('preferredLanguage', langCode);
+    setLang(langCode as 'fr' | 'ar' | 'en');
     setLangMenuOpen(false);
-    
-    const lang = languages.find(l => l.code === langCode);
-    if (lang?.dir === 'rtl') {
-      document.documentElement.dir = 'rtl';
-    } else {
-      document.documentElement.dir = 'ltr';
-    }
   };
 
   const handleLogout = async () => {
@@ -75,7 +66,7 @@ export default function DashboardLayout({
     router.push('/login');
   };
 
-  const currentLanguage = languages.find(l => l.code === currentLang) || languages[0];
+  const currentLanguage = languages.find(l => l.code === lang) || languages[0];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -125,18 +116,18 @@ export default function DashboardLayout({
                 
                 {langMenuOpen && (
                   <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                    {languages.map((lang) => (
+                    {languages.map((l) => (
                       <button
-                        key={lang.code}
-                        onClick={() => handleLanguageChange(lang.code)}
+                        key={l.code}
+                        onClick={() => handleLanguageChange(l.code)}
                         className={`w-full flex items-center gap-3 px-4 py-2 text-sm ${
-                          currentLang === lang.code
+                          lang === l.code
                             ? 'bg-indigo-50 text-indigo-700'
                             : 'text-gray-700 hover:bg-gray-50'
                         }`}
                       >
-                        <span>{lang.flag}</span>
-                        <span>{lang.name}</span>
+                        <span>{l.flag}</span>
+                        <span>{l.name}</span>
                       </button>
                     ))}
                   </div>

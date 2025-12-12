@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Exercise {
@@ -326,6 +326,14 @@ export default function SkillExercisePage() {
 
       <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="rounded-2xl bg-white p-8 shadow-xl">
+          {/* AI Badge - visible indicator that AI can generate personalized exercises */}
+          <div className="mb-4 flex justify-center">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Exercice adaptatif</span>
+            </div>
+          </div>
+          
           <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
             {currentExercise.content.question}
           </h2>

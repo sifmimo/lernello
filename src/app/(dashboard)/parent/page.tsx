@@ -64,24 +64,16 @@ export default function ParentDashboardPage() {
       return;
     }
 
-    const { data: links } = await supabase
-      .from('parent_student_links')
-      .select('student_id')
-      .eq('parent_id', user.id);
+    // Charger les profils directement via user_id (le parent est le propriétaire)
+    const { data: profilesData } = await supabase
+      .from('student_profiles')
+      .select('id, display_name, avatar_url')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
 
-    if (links && links.length > 0) {
-      const studentIds = links.map((l: { student_id: string }) => l.student_id);
-      const { data: profilesData } = await supabase
-        .from('student_profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', studentIds);
-
-      if (profilesData) {
-        setProfiles(profilesData);
-        if (profilesData.length > 0) {
-          setSelectedProfile(profilesData[0].id);
-        }
-      }
+    if (profilesData && profilesData.length > 0) {
+      setProfiles(profilesData);
+      setSelectedProfile(profilesData[0].id);
     }
     setLoading(false);
   };
