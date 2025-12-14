@@ -15,7 +15,9 @@ import {
   ChevronDown,
   Trophy,
   Bell,
-  Users
+  Users,
+  FolderPlus,
+  Compass
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useI18n } from '@/i18n/context';
@@ -41,6 +43,8 @@ export default function DashboardLayout({
   const navigation = [
     { name: t('nav.home'), href: '/dashboard', icon: Home },
     { name: t('nav.learn'), href: '/learn', icon: BookOpen },
+    { name: 'Créer', href: '/create', icon: FolderPlus },
+    { name: 'Explorer', href: '/explore', icon: Compass },
     { name: t('nav.achievements'), href: '/achievements', icon: Trophy },
     { name: t('nav.profiles'), href: '/profiles', icon: User },
     { name: t('nav.parent'), href: '/parent', icon: Users },

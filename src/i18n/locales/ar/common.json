@@ -162,6 +162,14 @@
     "doubles_desc": "معرفة المضاعفات حتى 10"
   },
   "achievements": {
+    "title": "المكافآت",
+    "unlocked": "مفتوحة",
+    "all": "الكل",
+    "skills": "المهارات",
+    "streaks": "السلاسل",
+    "milestones": "المراحل",
+    "special": "خاصة",
+    "no_achievements": "لا توجد مكافآت في هذه الفئة",
     "first_exercise": "الخطوة الأولى",
     "first_exercise_desc": "أكملت تمرينك الأول!",
     "five_correct": "في الطريق!",

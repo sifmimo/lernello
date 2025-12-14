@@ -1,4 +1,4 @@
-import { encryptApiKey, decryptApiKey } from '@/lib/ai/encryption';
+import { encryptApiKey, decryptApiKey } from '../../../lib/ai/encryption';
 
 describe('AI Encryption', () => {
   const originalEnv = process.env;

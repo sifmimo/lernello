@@ -162,6 +162,14 @@
     "doubles_desc": "Know doubles up to 10"
   },
   "achievements": {
+    "title": "Rewards",
+    "unlocked": "Unlocked",
+    "all": "All",
+    "skills": "Skills",
+    "streaks": "Streaks",
+    "milestones": "Milestones",
+    "special": "Special",
+    "no_achievements": "No rewards in this category",
     "first_exercise": "First step",
     "first_exercise_desc": "You completed your first exercise!",
     "five_correct": "On the way!",

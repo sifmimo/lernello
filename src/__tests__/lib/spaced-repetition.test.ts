@@ -4,7 +4,7 @@ import {
   prioritizeExercises,
   SpacedRepetitionData,
   AnswerQuality,
-} from '@/lib/spaced-repetition';
+} from '../../lib/spaced-repetition';
 
 describe('Spaced Repetition Algorithm', () => {
   describe('calculateNextReview', () => {

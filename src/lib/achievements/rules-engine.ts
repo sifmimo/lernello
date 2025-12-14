@@ -92,7 +92,7 @@ async function evaluateTimeGoal(
 
   const supabase = await createClient();
   
-  let startDate = new Date();
+  const startDate = new Date();
   if (period === 'day') {
     startDate.setHours(0, 0, 0, 0);
   } else if (period === 'week') {
