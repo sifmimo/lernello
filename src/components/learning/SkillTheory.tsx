@@ -8,7 +8,7 @@ import type { FullSkillContent, PedagogicalMethod } from '@/types/v2';
 interface SkillTheoryProps {
   skillId: string;
   skillName: string;
-  skillDescription: string;
+  skillDescription?: string;
   language?: string;
   onComplete?: () => void;
 }
@@ -55,7 +55,7 @@ export default function SkillTheory({
     const result = await generateFullSkillContent(
       skillId,
       skillName,
-      skillDescription,
+      skillDescription || '',
       selectedMethod as 'standard' | 'montessori' | 'singapore' | 'gamified',
       language
     );

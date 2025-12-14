@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle, Star, Loader2, Wand2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle, Star, Loader2, Wand2, BookOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getAIHint, getEncouragement } from '@/server/actions/ai';
 import { fetchOrGenerateExercise, submitAnswerAndGetNext, rateExercise } from '@/server/actions/content';
+import SkillTheory from '@/components/learning/SkillTheory';
+import { getSkillContent } from '@/server/actions/skill-content';
 
 interface Exercise {
   id: string;
@@ -62,6 +64,9 @@ export default function SkillExercisePage() {
   const [exerciseStartTime, setExerciseStartTime] = useState<Date>(new Date());
   const [hintsUsedCount, setHintsUsedCount] = useState(0);
   const [progressReason, setProgressReason] = useState<string | null>(null);
+  const [showTheory, setShowTheory] = useState(false);
+  const [hasTheoryContent, setHasTheoryContent] = useState(false);
+  const [skillName, setSkillName] = useState('');
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -75,7 +80,7 @@ export default function SkillExercisePage() {
       
       const { data: skillData } = await supabase
         .from('skills')
-        .select('id')
+        .select('id, name_key, description_key')
         .eq('code', skillCode)
         .single();
 
@@ -85,6 +90,10 @@ export default function SkillExercisePage() {
       }
 
       setSkillId(skillData.id);
+      setSkillName(skillData.name_key || skillCode);
+
+      const theoryContent = await getSkillContent(skillData.id);
+      setHasTheoryContent(!!theoryContent?.content);
 
       // Utiliser le système auto-alimenté
       const result = await fetchOrGenerateExercise(skillData.id, profileId);
@@ -425,6 +434,31 @@ export default function SkillExercisePage() {
 
       <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="rounded-2xl bg-white p-8 shadow-xl">
+          {/* Theory toggle button */}
+          {skillId && (
+            <div className="mb-4 flex justify-center">
+              <button
+                onClick={() => setShowTheory(!showTheory)}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                  showTheory 
+                    ? 'bg-indigo-600 text-white' 
+                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                }`}
+              >
+                <BookOpen className="h-4 w-4" />
+                {showTheory ? 'Masquer la théorie' : 'Voir la théorie'}
+                {!hasTheoryContent && <span className="text-xs opacity-75">(Générer)</span>}
+              </button>
+            </div>
+          )}
+
+          {/* Theory content */}
+          {showTheory && skillId && (
+            <div className="mb-6">
+              <SkillTheory skillId={skillId} skillName={skillName} />
+            </div>
+          )}
+
           {/* AI Badge - visible indicator */}
           <div className="mb-4 flex flex-wrap justify-center gap-2">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
