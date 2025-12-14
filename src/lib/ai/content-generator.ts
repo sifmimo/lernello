@@ -287,39 +287,48 @@ export async function getOrCreateExercise(
 
   const targetAge = studentProfile?.age || 8;
 
-  // Chercher un exercice existant adapté (colonnes de base uniquement)
-  const { data: existingExercises } = await supabase
+  // Chercher TOUS les exercices validés pour cette compétence
+  const { data: allExercises } = await supabase
     .from('exercises')
     .select('id, type, content, difficulty')
     .eq('skill_id', skillId)
     .eq('is_validated', true)
-    .gte('difficulty', Math.max(1, recommendedDifficulty - 1))
-    .lte('difficulty', Math.min(5, recommendedDifficulty + 1))
-    .limit(10);
+    .order('difficulty', { ascending: true });
 
-  // Récupérer les exercices déjà faits par l'élève
-  const { data: attemptedExercises } = await supabase
+  // Récupérer les exercices récemment faits par l'élève (dernières 24h pour éviter répétition immédiate)
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentAttempts } = await supabase
     .from('exercise_attempts')
     .select('exercise_id')
-    .eq('student_id', studentId);
+    .eq('student_id', studentId)
+    .gte('created_at', oneDayAgo);
 
-  const attemptedIds = new Set(attemptedExercises?.map(a => a.exercise_id) || []);
+  const recentIds = new Set(recentAttempts?.map(a => a.exercise_id) || []);
 
-  // Filtrer les exercices non encore tentés
-  const availableExercises = existingExercises?.filter(e => !attemptedIds.has(e.id)) || [];
+  // Filtrer les exercices non récemment tentés
+  const availableExercises = allExercises?.filter(e => !recentIds.has(e.id)) || [];
 
-  if (availableExercises.length > 0) {
-    // Retourner un exercice existant aléatoire
-    const randomExercise = availableExercises[Math.floor(Math.random() * availableExercises.length)];
+  // Prioriser les exercices par difficulté adaptée
+  const prioritizedExercises = availableExercises.sort((a, b) => {
+    const diffA = Math.abs(a.difficulty - recommendedDifficulty);
+    const diffB = Math.abs(b.difficulty - recommendedDifficulty);
+    if (diffA !== diffB) return diffA - diffB;
+    return Math.random() - 0.5; // Randomiser si même priorité
+  });
+
+  if (prioritizedExercises.length > 0) {
+    // Prendre un exercice parmi les 3 meilleurs candidats pour varier
+    const topCandidates = prioritizedExercises.slice(0, Math.min(3, prioritizedExercises.length));
+    const randomExercise = topCandidates[Math.floor(Math.random() * topCandidates.length)];
     return {
       exercise: randomExercise as GeneratedExercise & { id: string },
       isNew: false,
     };
   }
 
-  // Si tous les exercices ont été tentés, permettre de refaire un exercice existant
-  if (existingExercises && existingExercises.length > 0) {
-    const randomExercise = existingExercises[Math.floor(Math.random() * existingExercises.length)];
+  // Si tous les exercices ont été faits récemment, en choisir un au hasard parmi tous
+  if (allExercises && allExercises.length > 0) {
+    const randomExercise = allExercises[Math.floor(Math.random() * allExercises.length)];
     return {
       exercise: randomExercise as GeneratedExercise & { id: string },
       isNew: false,
