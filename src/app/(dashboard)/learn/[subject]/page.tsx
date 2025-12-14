@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Star, Lock, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, BookOpen, Star, CheckCircle, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Domain {
@@ -185,28 +185,30 @@ export default function SubjectPage() {
               
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {domain.skills.map((skill, index) => {
-                  const isUnlocked = index === 0 || (domain.skills[index - 1]?.mastery || 0) >= 50;
+                  const isRecommended = index === 0 || (domain.skills[index - 1]?.mastery || 0) >= 50;
                   const isMastered = (skill.mastery || 0) >= 80;
                   
                   return (
                     <Link
                       key={skill.id}
-                      href={isUnlocked ? `/learn/${subject}/${skill.code}` : '#'}
+                      href={`/learn/${subject}/${skill.code}`}
                       className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${
-                        isUnlocked
-                          ? 'border-transparent bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50'
-                          : 'cursor-not-allowed border-gray-200 bg-gray-100 opacity-60'
+                        isMastered
+                          ? 'border-green-200 bg-green-50 hover:border-green-300'
+                          : isRecommended
+                          ? 'border-indigo-200 bg-indigo-50 hover:border-indigo-400'
+                          : 'border-transparent bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
                       }`}
                     >
                       <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                        isMastered ? 'bg-green-100' : isUnlocked ? 'bg-indigo-100' : 'bg-gray-200'
+                        isMastered ? 'bg-green-100' : isRecommended ? 'bg-indigo-100' : 'bg-gray-200'
                       }`}>
                         {isMastered ? (
                           <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : isUnlocked ? (
+                        ) : isRecommended ? (
                           <Star className="h-5 w-5 text-indigo-600" />
                         ) : (
-                          <Lock className="h-5 w-5 text-gray-400" />
+                          <BookOpen className="h-5 w-5 text-gray-500" />
                         )}
                       </div>
                       <div className="flex-1">
