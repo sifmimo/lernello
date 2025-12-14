@@ -397,7 +397,7 @@ export async function evaluateAndGetNextExercise(
   // Récupérer les stats depuis student_skill_progress
   const { data: progressList } = await supabase
     .from('student_skill_progress')
-    .select('id, attempts_count, correct_count, mastery_level, current_streak, best_streak')
+    .select('id, attempts_count, correct_count, mastery_level, current_streak, best_streak, skill_level')
     .eq('student_id', studentId)
     .eq('skill_id', currentSkillId)
     .limit(1);
@@ -451,38 +451,87 @@ export async function evaluateAndGetNextExercise(
     });
   }
 
+  // Système de niveaux gamifié (1-5 étoiles)
+  // Niveau 1: 0-20% maîtrise (3 exercices corrects)
+  // Niveau 2: 20-40% maîtrise (6 exercices corrects)
+  // Niveau 3: 40-60% maîtrise (10 exercices corrects)
+  // Niveau 4: 60-80% maîtrise (15 exercices corrects)
+  // Niveau 5: 80-100% maîtrise (20 exercices corrects) = Compétence maîtrisée
+  
+  const currentLevel = progressData?.skill_level || 1;
+  let newLevel = currentLevel;
+  let levelUp = false;
+  let skillMastered = false;
+  
+  // Calculer le nouveau niveau basé sur le nombre de bonnes réponses
+  if (newCorrect >= 20 && newMastery >= 80) {
+    newLevel = 5;
+    skillMastered = true;
+  } else if (newCorrect >= 15 && newMastery >= 60) {
+    newLevel = 4;
+  } else if (newCorrect >= 10 && newMastery >= 40) {
+    newLevel = 3;
+  } else if (newCorrect >= 6 && newMastery >= 20) {
+    newLevel = 2;
+  } else if (newCorrect >= 3) {
+    newLevel = 1;
+  }
+  
+  levelUp = newLevel > currentLevel;
+  
+  // Mettre à jour le niveau dans la progression
+  if (levelUp || skillMastered) {
+    await supabase
+      .from('student_skill_progress')
+      .update({ 
+        skill_level: newLevel,
+        mastered_at: skillMastered ? new Date().toISOString() : null
+      })
+      .eq('student_id', studentId)
+      .eq('skill_id', currentSkillId);
+  }
+
   // Logique de progression adaptative
   let nextSkillId = currentSkillId;
   let reason = '';
 
-  // Si maîtrise suffisante (>80% sur au moins 5 exercices), passer à la compétence suivante
-  if (newMastery >= 80 && newAttempts >= 5) {
+  // Si compétence maîtrisée (niveau 5), déverrouiller et passer à la suivante
+  if (skillMastered) {
     const { data: currentSkill } = await supabase
       .from('skills')
-      .select('domain_id, sort_order')
+      .select('domain_id, sort_order, name_key')
       .eq('id', currentSkillId)
       .single();
 
     if (currentSkill) {
       const { data: nextSkillList } = await supabase
         .from('skills')
-        .select('id')
+        .select('id, name_key')
         .eq('domain_id', currentSkill.domain_id)
         .gt('sort_order', currentSkill.sort_order)
         .order('sort_order', { ascending: true })
         .limit(1);
 
       if (nextSkillList?.[0]) {
+        // Déverrouiller la compétence suivante
+        await supabase.from('student_unlocked_skills').upsert({
+          student_id: studentId,
+          skill_id: nextSkillList[0].id,
+          unlocked_by_skill_id: currentSkillId,
+        }, { onConflict: 'student_id,skill_id' });
+        
         nextSkillId = nextSkillList[0].id;
-        reason = 'Bravo ! Tu maîtrises cette compétence. Passons à la suivante !';
+        reason = `🏆 Compétence maîtrisée ! Nouvelle compétence débloquée !`;
       } else {
-        reason = 'Tu as terminé toutes les compétences de ce domaine !';
+        reason = '🎉 Félicitations ! Tu as terminé toutes les compétences de ce domaine !';
       }
     }
+  } else if (levelUp) {
+    reason = `⭐ Niveau ${newLevel} atteint ! Continue pour débloquer le niveau suivant !`;
   } else if (correctRate < 0.4 && newAttempts >= 3) {
     reason = 'Continuons à pratiquer cette compétence ensemble.';
   } else if (newStreak >= 3) {
-    reason = `Série de ${newStreak} bonnes réponses ! Continue comme ça !`;
+    reason = `🔥 Série de ${newStreak} bonnes réponses ! Continue comme ça !`;
   } else {
     reason = wasCorrect ? 'Excellent ! Continue comme ça !' : 'Pas de souci, on continue à s\'entraîner.';
   }

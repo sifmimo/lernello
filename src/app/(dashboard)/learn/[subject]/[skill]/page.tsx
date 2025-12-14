@@ -67,6 +67,8 @@ export default function SkillExercisePage() {
   const [showTheory, setShowTheory] = useState(false);
   const [hasTheoryContent, setHasTheoryContent] = useState(false);
   const [skillName, setSkillName] = useState('');
+  const [currentSkillLevel, setCurrentSkillLevel] = useState(1);
+  const [correctCount, setCorrectCount] = useState(0);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -91,6 +93,19 @@ export default function SkillExercisePage() {
 
       setSkillId(skillData.id);
       setSkillName(skillData.name_key || skillCode);
+
+      // Charger la progression actuelle
+      const { data: progressData } = await supabase
+        .from('student_skill_progress')
+        .select('skill_level, correct_count')
+        .eq('student_id', profileId)
+        .eq('skill_id', skillData.id)
+        .limit(1);
+      
+      if (progressData?.[0]) {
+        setCurrentSkillLevel(progressData[0].skill_level || 1);
+        setCorrectCount(progressData[0].correct_count || 0);
+      }
 
       const theoryContent = await getSkillContent(skillData.id);
       setHasTheoryContent(!!theoryContent?.content);
@@ -178,6 +193,19 @@ export default function SkillExercisePage() {
     );
 
     if (result.success && result.nextExercise) {
+      // Mettre à jour le compteur de bonnes réponses et le niveau
+      if (isCorrect) {
+        const newCorrectCount = correctCount + 1;
+        setCorrectCount(newCorrectCount);
+        
+        // Calculer le nouveau niveau
+        if (newCorrectCount >= 20) setCurrentSkillLevel(5);
+        else if (newCorrectCount >= 15) setCurrentSkillLevel(4);
+        else if (newCorrectCount >= 10) setCurrentSkillLevel(3);
+        else if (newCorrectCount >= 6) setCurrentSkillLevel(2);
+        else if (newCorrectCount >= 3) setCurrentSkillLevel(1);
+      }
+      
       // Ajouter le nouvel exercice
       setExercises(prev => [...prev, result.nextExercise as Exercise]);
       setCurrentIndex(prev => prev + 1);
@@ -356,6 +384,12 @@ export default function SkillExercisePage() {
     );
   }
 
+  // Calculer la progression vers le prochain niveau
+  const levelThresholds = [0, 3, 6, 10, 15, 20];
+  const nextLevelThreshold = levelThresholds[currentSkillLevel] || 20;
+  const prevLevelThreshold = levelThresholds[currentSkillLevel - 1] || 0;
+  const progressToNextLevel = Math.min(100, Math.round(((correctCount - prevLevelThreshold) / (nextLevelThreshold - prevLevelThreshold)) * 100));
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <header className="bg-white shadow-sm">
@@ -363,20 +397,32 @@ export default function SkillExercisePage() {
           <Link href={`/learn/${subject}`} className="rounded-lg p-2 hover:bg-gray-100">
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </Link>
-          <div className="flex items-center gap-2">
-            {exercises.map((_, i) => (
-              <div
-                key={i}
-                className={`h-2 w-8 rounded-full transition-all ${
-                  i < currentIndex
-                    ? 'bg-green-500'
-                    : i === currentIndex
-                    ? 'bg-indigo-600'
-                    : 'bg-gray-200'
-                }`}
+          
+          {/* Affichage du niveau avec étoiles */}
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((level) => (
+                <Star
+                  key={level}
+                  className={`h-5 w-5 ${
+                    level <= currentSkillLevel
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-gray-200">
+              <div 
+                className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-500"
+                style={{ width: `${progressToNextLevel}%` }}
               />
-            ))}
+            </div>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {correctCount}/{nextLevelThreshold} pour niveau {Math.min(5, currentSkillLevel + 1)}
+            </p>
           </div>
+
           <div className="text-sm font-medium text-gray-600">
             {currentIndex + 1}/{exercises.length}
           </div>
