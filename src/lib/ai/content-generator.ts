@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAICompletion, AIProvider, AIModel } from './providers';
+import { calculateNextReview, qualityFromCorrectness, SpacedRepetitionData } from '@/lib/spaced-repetition';
 
 export type ExerciseType = 'qcm' | 'fill_blank' | 'drag_drop' | 'free_input';
 
@@ -384,24 +385,69 @@ export async function evaluateAndGetNextExercise(
 ): Promise<{ nextSkillId: string; nextExercise: GeneratedExercise & { id: string }; reason: string } | null> {
   const supabase = await createClient();
 
-  // Récupérer les stats depuis student_skill_progress (table existante)
-  const { data: progressData } = await supabase
+  // Récupérer les stats depuis student_skill_progress
+  const { data: progressList } = await supabase
     .from('student_skill_progress')
-    .select('attempts_count, correct_count, mastery_level')
+    .select('id, attempts_count, correct_count, mastery_level, current_streak, best_streak')
     .eq('student_id', studentId)
     .eq('skill_id', currentSkillId)
-    .single();
+    .limit(1);
 
+  const progressData = progressList?.[0] || null;
   const exercisesCompleted = progressData?.attempts_count || 0;
   const correctRate = progressData ? (progressData.correct_count / Math.max(1, progressData.attempts_count)) : 0;
 
-  // Logique de progression
+  // Calculer la qualité de la réponse pour la répétition espacée
+  const quality = qualityFromCorrectness(wasCorrect, timeSpentSeconds * 1000, hintsUsed);
+  
+  // Calculer les données de répétition espacée
+  const currentSpacedData: SpacedRepetitionData | null = progressData ? {
+    interval: 1,
+    easeFactor: 2.5,
+    repetitions: progressData.correct_count || 0,
+    nextReviewDate: new Date(),
+  } : null;
+  
+  const spacedResult = calculateNextReview(currentSpacedData, quality);
+
+  // Mettre à jour la progression avec les données de répétition espacée
+  const newAttempts = exercisesCompleted + 1;
+  const newCorrect = (progressData?.correct_count || 0) + (wasCorrect ? 1 : 0);
+  const newMastery = Math.round((newCorrect / newAttempts) * 100);
+  const newStreak = wasCorrect ? (progressData?.current_streak || 0) + 1 : 0;
+  const bestStreak = Math.max(newStreak, progressData?.best_streak || 0);
+
+  if (progressData) {
+    await supabase
+      .from('student_skill_progress')
+      .update({
+        attempts_count: newAttempts,
+        correct_count: newCorrect,
+        mastery_level: newMastery,
+        current_streak: newStreak,
+        best_streak: bestStreak,
+        last_attempt_at: new Date().toISOString(),
+      })
+      .eq('id', progressData.id);
+  } else {
+    await supabase.from('student_skill_progress').insert({
+      student_id: studentId,
+      skill_id: currentSkillId,
+      attempts_count: 1,
+      correct_count: wasCorrect ? 1 : 0,
+      mastery_level: wasCorrect ? 100 : 0,
+      current_streak: wasCorrect ? 1 : 0,
+      best_streak: wasCorrect ? 1 : 0,
+      last_attempt_at: new Date().toISOString(),
+    });
+  }
+
+  // Logique de progression adaptative
   let nextSkillId = currentSkillId;
   let reason = '';
 
   // Si maîtrise suffisante (>80% sur au moins 5 exercices), passer à la compétence suivante
-  if (correctRate >= 0.8 && exercisesCompleted >= 5) {
-    // Chercher la compétence suivante dans le même domaine
+  if (newMastery >= 80 && newAttempts >= 5) {
     const { data: currentSkill } = await supabase
       .from('skills')
       .select('domain_id, sort_order')
@@ -409,25 +455,25 @@ export async function evaluateAndGetNextExercise(
       .single();
 
     if (currentSkill) {
-      const { data: nextSkill } = await supabase
+      const { data: nextSkillList } = await supabase
         .from('skills')
         .select('id')
         .eq('domain_id', currentSkill.domain_id)
         .gt('sort_order', currentSkill.sort_order)
         .order('sort_order', { ascending: true })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (nextSkill) {
-        nextSkillId = nextSkill.id;
+      if (nextSkillList?.[0]) {
+        nextSkillId = nextSkillList[0].id;
         reason = 'Bravo ! Tu maîtrises cette compétence. Passons à la suivante !';
       } else {
         reason = 'Tu as terminé toutes les compétences de ce domaine !';
       }
     }
-  } else if (correctRate < 0.4 && exercisesCompleted >= 3) {
-    // Difficulté trop élevée, rester sur la même compétence avec difficulté réduite
+  } else if (correctRate < 0.4 && newAttempts >= 3) {
     reason = 'Continuons à pratiquer cette compétence ensemble.';
+  } else if (newStreak >= 3) {
+    reason = `Série de ${newStreak} bonnes réponses ! Continue comme ça !`;
   } else {
     reason = wasCorrect ? 'Excellent ! Continue comme ça !' : 'Pas de souci, on continue à s\'entraîner.';
   }

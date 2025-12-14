@@ -152,58 +152,9 @@ export default function SkillExercisePage() {
     saveAttempt(correct);
   }, [currentExercise, selectedAnswer, inputAnswer, fillBlankAnswers, dragDropOrder, showResult]);
 
-  const saveAttempt = async (correct: boolean) => {
-    const profileId = localStorage.getItem('activeProfileId');
-    if (!profileId || !currentExercise) return;
-
-    const supabase = createClient();
-    await supabase.from('exercise_attempts').insert({
-      student_id: profileId,
-      exercise_id: currentExercise.id,
-      is_correct: correct,
-      answer: currentExercise.type === 'qcm' ? { selected: selectedAnswer } : { input: inputAnswer },
-    });
-
-    // Mettre à jour la progression
-    const { data: skillData } = await supabase
-      .from('skills')
-      .select('id')
-      .eq('code', skillCode)
-      .single();
-
-    if (skillData) {
-      const { data: progress } = await supabase
-        .from('student_skill_progress')
-        .select('*')
-        .eq('student_id', profileId)
-        .eq('skill_id', skillData.id)
-        .single();
-
-      const newAttempts = (progress?.attempts_count || 0) + 1;
-      const newCorrect = (progress?.correct_count || 0) + (correct ? 1 : 0);
-      const newMastery = Math.round((newCorrect / newAttempts) * 100);
-
-      if (progress) {
-        await supabase
-          .from('student_skill_progress')
-          .update({
-            attempts_count: newAttempts,
-            correct_count: newCorrect,
-            mastery_level: newMastery,
-            last_attempt_at: new Date().toISOString(),
-          })
-          .eq('id', progress.id);
-      } else {
-        await supabase.from('student_skill_progress').insert({
-          student_id: profileId,
-          skill_id: skillData.id,
-          attempts_count: 1,
-          correct_count: correct ? 1 : 0,
-          mastery_level: correct ? 100 : 0,
-          last_attempt_at: new Date().toISOString(),
-        });
-      }
-    }
+  const saveAttempt = async (_correct: boolean) => {
+    // La sauvegarde est gérée par submitAnswerAndGetNext dans nextExercise
+    // Cette fonction est conservée pour la compatibilité mais ne fait plus rien
   };
 
   const nextExercise = async () => {
