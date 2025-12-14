@@ -10,7 +10,9 @@ COPY package.json pnpm-lock.yaml* ./
 
 RUN pnpm install --frozen-lockfile || pnpm install
 
-COPY . .
+COPY src ./src
+COPY public ./public
+COPY next.config.ts tsconfig.json tailwind.config.ts postcss.config.mjs ./
 
 EXPOSE 3000
 
