@@ -427,7 +427,7 @@ export async function evaluateAndGetNextExercise(
   const bestStreak = Math.max(newStreak, progressData?.best_streak || 0);
 
   if (progressData) {
-    await supabase
+    const { error: updateError } = await supabase
       .from('student_skill_progress')
       .update({
         attempts_count: newAttempts,
@@ -438,8 +438,12 @@ export async function evaluateAndGetNextExercise(
         last_attempt_at: new Date().toISOString(),
       })
       .eq('id', progressData.id);
+    
+    if (updateError) {
+      console.error('Error updating progress:', updateError);
+    }
   } else {
-    await supabase.from('student_skill_progress').insert({
+    const { error: insertError } = await supabase.from('student_skill_progress').insert({
       student_id: studentId,
       skill_id: currentSkillId,
       attempts_count: 1,
@@ -449,6 +453,10 @@ export async function evaluateAndGetNextExercise(
       best_streak: wasCorrect ? 1 : 0,
       last_attempt_at: new Date().toISOString(),
     });
+    
+    if (insertError) {
+      console.error('Error inserting progress:', insertError);
+    }
   }
 
   // Système de niveaux gamifié (1-5 étoiles)

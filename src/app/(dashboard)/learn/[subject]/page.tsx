@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Star, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, BookOpen, Star, CheckCircle, Sparkles, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Domain {
@@ -20,6 +20,8 @@ interface Skill {
   name_key: string;
   difficulty_level: number;
   mastery?: number;
+  skillLevel?: number;
+  isUnlocked?: boolean;
 }
 
 const skillNames: Record<string, string> = {
@@ -113,25 +115,42 @@ export default function SubjectPage() {
       .order('sort_order', { ascending: true });
 
     if (domainsData) {
-      // Load mastery for each skill
       const profileId = localStorage.getItem('activeProfileId');
       if (profileId) {
+        // Charger la progression et les compétences déverrouillées
         const { data: progressData } = await supabase
           .from('student_skill_progress')
-          .select('skill_id, mastery_level')
+          .select('skill_id, mastery_level, skill_level')
           .eq('student_id', profileId);
 
-        const masteryMap = new Map(progressData?.map(p => [p.skill_id, p.mastery_level]) || []);
+        const { data: unlockedData } = await supabase
+          .from('student_unlocked_skills')
+          .select('skill_id')
+          .eq('student_id', profileId);
+
+        const masteryMap = new Map(progressData?.map(p => [p.skill_id, { mastery: p.mastery_level, level: p.skill_level }]) || []);
+        const unlockedSet = new Set(unlockedData?.map(u => u.skill_id) || []);
         
-        const domainsWithMastery = domainsData.map(domain => ({
-          ...domain,
-          skills: (domain.skills as Skill[])
-            .sort((a: any, b: any) => a.sort_order - b.sort_order)
-            .map((skill: Skill) => ({
-              ...skill,
-              mastery: masteryMap.get(skill.id) || 0,
-            })),
-        }));
+        const domainsWithMastery = domainsData.map(domain => {
+          const sortedSkills = (domain.skills as Skill[]).sort((a: any, b: any) => a.sort_order - b.sort_order);
+          
+          return {
+            ...domain,
+            skills: sortedSkills.map((skill: Skill, index: number) => {
+              const progress = masteryMap.get(skill.id);
+              const isFirstSkill = index === 0;
+              const previousSkillMastered = index > 0 && (masteryMap.get(sortedSkills[index - 1].id)?.level || 0) >= 5;
+              const isUnlocked = isFirstSkill || previousSkillMastered || unlockedSet.has(skill.id);
+              
+              return {
+                ...skill,
+                mastery: progress?.mastery || 0,
+                skillLevel: progress?.level || 0,
+                isUnlocked,
+              };
+            }),
+          };
+        });
         
         setDomains(domainsWithMastery);
       } else {
@@ -184,9 +203,32 @@ export default function SubjectPage() {
               </div>
               
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {domain.skills.map((skill, index) => {
-                  const isRecommended = index === 0 || (domain.skills[index - 1]?.mastery || 0) >= 50;
-                  const isMastered = (skill.mastery || 0) >= 80;
+                {domain.skills.map((skill) => {
+                  const isMastered = (skill.skillLevel || 0) >= 5;
+                  const isUnlocked = skill.isUnlocked || false;
+                  const isInProgress = isUnlocked && !isMastered && (skill.skillLevel || 0) > 0;
+                  
+                  // Afficher les étoiles de niveau
+                  const stars = skill.skillLevel || 0;
+                  
+                  if (!isUnlocked) {
+                    return (
+                      <div
+                        key={skill.id}
+                        className="relative flex items-center gap-3 rounded-xl border-2 border-gray-200 bg-gray-100 p-4 opacity-60"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200">
+                          <Lock className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-500">
+                            {skillNames[skill.code] || skill.name_key}
+                          </h3>
+                          <p className="text-xs text-gray-400">Maîtrise la compétence précédente</p>
+                        </div>
+                      </div>
+                    );
+                  }
                   
                   return (
                     <Link
@@ -195,33 +237,37 @@ export default function SubjectPage() {
                       className={`relative flex items-center gap-3 rounded-xl border-2 p-4 transition-all ${
                         isMastered
                           ? 'border-green-200 bg-green-50 hover:border-green-300'
-                          : isRecommended
-                          ? 'border-indigo-200 bg-indigo-50 hover:border-indigo-400'
-                          : 'border-transparent bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                          : isInProgress
+                          ? 'border-yellow-200 bg-yellow-50 hover:border-yellow-400'
+                          : 'border-indigo-200 bg-indigo-50 hover:border-indigo-400'
                       }`}
                     >
                       <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                        isMastered ? 'bg-green-100' : isRecommended ? 'bg-indigo-100' : 'bg-gray-200'
+                        isMastered ? 'bg-green-100' : isInProgress ? 'bg-yellow-100' : 'bg-indigo-100'
                       }`}>
                         {isMastered ? (
                           <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : isRecommended ? (
-                          <Star className="h-5 w-5 text-indigo-600" />
+                        ) : isInProgress ? (
+                          <Star className="h-5 w-5 text-yellow-600" />
                         ) : (
-                          <BookOpen className="h-5 w-5 text-gray-500" />
+                          <Sparkles className="h-5 w-5 text-indigo-600" />
                         )}
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-900">
                           {skillNames[skill.code] || skill.name_key}
                         </h3>
-                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              isMastered ? 'bg-green-500' : 'bg-indigo-500'
-                            }`}
-                            style={{ width: `${skill.mastery || 0}%` }}
-                          />
+                        <div className="flex items-center gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map((level) => (
+                            <Star
+                              key={level}
+                              className={`h-3 w-3 ${
+                                level <= stars
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
                         </div>
                       </div>
                     </Link>
