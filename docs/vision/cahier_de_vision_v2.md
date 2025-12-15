@@ -1,6 +1,5 @@
 # 📘 Cahier de Vision – V2
 ## Plateforme d’apprentissage scolaire adaptative, multilingue et orientée compétences  
-*(Version consolidée et corrigée)*
 
 ---
 
@@ -147,9 +146,47 @@ Chaque compétence générée, qu’elle soit officielle ou utilisateur, respect
 
 ---
 
+### 8.3 Gestion du contenu officiel par l'administrateur
+
+L'administrateur est responsable de la création et de la gestion du contenu officiel de la plateforme.
+
+#### Génération de matières via IA
+
+L'administrateur peut **générer une matière complète** (avec ses modules et compétences) en sélectionnant :
+- le **pays** (programme officiel de référence),
+- la **méthode pédagogique** à appliquer,
+- la **langue** de génération,
+- le **modèle IA** à utiliser pour la génération.
+
+L'IA génère alors :
+- la structure de la matière,
+- les modules correspondants,
+- les compétences avec leurs prérequis et ordre de progression.
+
+**Note importante** : Le contenu des compétences (exercices, explications) se crée au fur et à mesure de l'utilisation de la plateforme, selon les règles de génération dynamique déjà implémentées.
+
+#### Gestion CRUD complète
+
+L'administrateur peut à tout moment :
+- **Modifier** une matière, un module ou une compétence existante,
+- **Ajouter** de nouveaux modules ou compétences,
+- **Supprimer** des éléments individuels ou une matière complète,
+- **Réordonner** les modules et compétences.
+
+#### Validation avant publication
+
+Tout contenu créé ou modifié par l'administrateur est soumis à un processus de validation :
+- Le contenu est d'abord en statut **"brouillon"** (draft),
+- L'administrateur peut **prévisualiser** le contenu avant validation,
+- Une fois validé, le contenu passe en statut **"publié"** (published),
+- Seul le contenu publié est visible par tous les utilisateurs de la plateforme.
+
+Ce processus garantit la qualité et la cohérence pédagogique du contenu officiel.
+
+---
+
 ## 9. Contenu officiel vs contenu utilisateur
 
-### 9.1 Contenu officiel de la plateforme
 
 - Les **matières et modules officiels** sont définis automatiquement par la plateforme à partir du programme officiel du pays sélectionné.
 - Une **liste initiale de compétences** est créée et maintenue par la plateforme.

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Plus, Trash2, Edit, Loader2, Save, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Plus, Trash2, Edit, Loader2, Eye, EyeOff, Sparkles, Save, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Subject {
@@ -13,6 +13,10 @@ interface Subject {
   icon: string;
   sort_order: number;
   is_official: boolean;
+  status: string;
+  language: string;
+  domains_count?: number;
+  skills_count?: number;
 }
 
 const subjectNames: Record<string, string> = {
@@ -129,17 +133,13 @@ export default function SubjectsPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setFormData({ code: '', name_key: '', description_key: '', icon: '', sort_order: subjects.length + 1 });
-              setEditingId(null);
-              setShowAddForm(true);
-            }}
+          <Link
+            href="/admin/subjects/new"
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
           >
-            <Plus className="h-4 w-4" />
-            Ajouter une matière
-          </button>
+            <Sparkles className="h-4 w-4" />
+            Générer une matière
+          </Link>
         </div>
 
         {showAddForm && (
@@ -211,40 +211,43 @@ export default function SubjectsPage() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {subjects.map((subject) => (
-            <div
+            <Link
               key={subject.id}
-              className="p-4 rounded-xl border bg-card"
+              href={`/admin/subjects/${subject.id}`}
+              className="p-4 rounded-xl border bg-card hover:shadow-lg transition-shadow"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{subject.icon}</span>
                   <div>
                     <h3 className="font-semibold">{subjectNames[subject.name_key] || subject.name_key}</h3>
-                    <p className="text-xs text-muted-foreground">Code: {subject.code}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        subject.status === 'published' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {subject.status === 'published' ? 'Publié' : 'Brouillon'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  <button
-                    onClick={() => startEdit(subject)}
-                    className="p-2 hover:bg-muted rounded-lg"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteSubject(subject.id)}
-                    className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {subject.status === 'published' ? (
+                    <Eye className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <EyeOff className="h-4 w-4 text-yellow-600" />
+                  )}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
 
           {subjects.length === 0 && (
             <div className="col-span-full text-center py-12 text-muted-foreground">
               <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Aucune matière configurée</p>
+              <p className="text-sm mt-2">Cliquez sur "Générer une matière" pour commencer</p>
             </div>
           )}
         </div>
