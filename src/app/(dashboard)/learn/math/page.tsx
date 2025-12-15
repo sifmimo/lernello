@@ -18,12 +18,15 @@ interface Skill {
   name_key: string;
   difficulty_level: number;
   sort_order?: number;
+  exerciseCount?: number;
+  completedExercises?: number;
 }
 
 interface SkillProgress {
   skill_id: string;
   mastery_level: number;
   skill_level: number;
+  attempts_count?: number;
 }
 
 interface UnlockedSkill {
@@ -141,7 +144,7 @@ export default async function MathLearnPage() {
   if (profileId) {
     const { data: progressData } = await supabase
       .from("student_skill_progress")
-      .select("skill_id, mastery_level, skill_level")
+      .select("skill_id, mastery_level, skill_level, attempts_count")
       .eq("student_id", profileId);
 
     const { data: unlockedData } = await supabase
@@ -154,6 +157,19 @@ export default async function MathLearnPage() {
     );
     unlockedSet = new Set((unlockedData as UnlockedSkill[] || []).map((u) => u.skill_id));
   }
+
+  // Récupérer le nombre d'exercices par compétence
+  const skillIds = (domains as Domain[] || []).flatMap(d => d.skills.map(s => s.id));
+  const { data: exerciseCounts } = await supabase
+    .from("exercises")
+    .select("skill_id")
+    .in("skill_id", skillIds)
+    .eq("is_validated", true);
+  
+  const exerciseCountMap = new Map<string, number>();
+  (exerciseCounts || []).forEach((e: { skill_id: string }) => {
+    exerciseCountMap.set(e.skill_id, (exerciseCountMap.get(e.skill_id) || 0) + 1);
+  });
 
   // Calculer le statut de chaque compétence
   const domainsWithProgress = (domains as Domain[] || []).map((domain) => {
@@ -173,6 +189,8 @@ export default async function MathLearnPage() {
           isUnlocked,
           isMastered,
           skillLevel: progress?.skill_level || 0,
+          exerciseCount: exerciseCountMap.get(skill.id) || 0,
+          completedExercises: progress?.attempts_count || 0,
         };
       }),
     };
@@ -233,6 +251,8 @@ export default async function MathLearnPage() {
                     isLocked={!skill.isUnlocked}
                     isCompleted={skill.isMastered}
                     skillLevel={skill.skillLevel}
+                    exerciseCount={skill.exerciseCount}
+                    completedExercises={skill.completedExercises}
                   />
                 ))}
               </div>
@@ -255,11 +275,15 @@ function SkillCard({
   isLocked,
   isCompleted,
   skillLevel,
+  exerciseCount,
+  completedExercises,
 }: {
   skill: Skill;
   isLocked: boolean;
   isCompleted: boolean;
   skillLevel: number;
+  exerciseCount: number;
+  completedExercises: number;
 }) {
   const name = translations[skill.name_key] || skill.name_key;
 
@@ -296,7 +320,7 @@ function SkillCard({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h3 className="font-medium mb-1">{name}</h3>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 mb-1">
             {[1, 2, 3, 4, 5].map((level) => (
               <svg
                 key={level}
@@ -314,6 +338,9 @@ function SkillCard({
               </svg>
             ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {completedExercises} exercice{completedExercises !== 1 ? 's' : ''} réalisé{completedExercises !== 1 ? 's' : ''} / {exerciseCount} disponible{exerciseCount !== 1 ? 's' : ''}
+          </p>
         </div>
         <div className="ml-2">
           {isCompleted ? (

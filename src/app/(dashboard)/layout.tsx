@@ -17,10 +17,12 @@ import {
   Bell,
   Users,
   FolderPlus,
-  Compass
+  Compass,
+  Shield
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useI18n } from '@/i18n/context';
+import { useAdmin } from '@/lib/hooks/useAdmin';
 
 const languages = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -36,6 +38,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { t, lang, setLang } = useI18n();
+  const { isAdmin } = useAdmin();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [profileName, setProfileName] = useState('');
@@ -50,6 +53,7 @@ export default function DashboardLayout({
     { name: t('nav.parent'), href: '/parent', icon: Users },
     { name: t('nav.notifications'), href: '/parent/notifications', icon: Bell },
     { name: t('nav.settings'), href: '/settings', icon: Settings },
+    ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ];
 
   useEffect(() => {
