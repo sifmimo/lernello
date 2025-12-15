@@ -274,9 +274,22 @@ export async function getOrCreateExercise(
     .eq('skill_id', skillId)
     .single();
 
-  // Calculer la difficulté recommandée basée sur le taux de réussite
+  // Vision V2 Section 12.2: Parcours adaptatif avec alternance consolidation/défi
   const correctRate = progressData ? (progressData.correct_count / Math.max(1, progressData.attempts_count)) : 0.5;
-  const recommendedDifficulty = Math.min(5, Math.max(1, Math.round(correctRate * 5)));
+  const attemptsCount = progressData?.attempts_count || 0;
+  
+  // Alternance consolidation (70%) / défi (30%) pour éviter la sur-adaptation
+  const isConsolidationPhase = Math.random() < 0.7;
+  let recommendedDifficulty: number;
+  
+  if (isConsolidationPhase) {
+    // Consolidation: difficulté adaptée au niveau actuel
+    recommendedDifficulty = Math.min(5, Math.max(1, Math.round(correctRate * 5)));
+  } else {
+    // Défi: difficulté légèrement supérieure pour pousser l'apprenant
+    const baseDifficulty = Math.round(correctRate * 5);
+    recommendedDifficulty = Math.min(5, Math.max(1, baseDifficulty + 1));
+  }
 
   // Récupérer le profil de l'élève pour l'âge
   const { data: studentProfile } = await supabase
@@ -309,13 +322,17 @@ export async function getOrCreateExercise(
   const availableExercises = allExercises?.filter(e => !recentIds.has(e.id)) || [];
   const totalExercises = allExercises?.length || 0;
 
+  // Vision V2 Section 11: Limite de 10 exercices par compétence via tokens plateforme
+  const MAX_EXERCISES_PER_SKILL = 10;
+  const canGenerateWithPlatformTokens = totalExercises < MAX_EXERCISES_PER_SKILL;
+
   // Vision V2: Si pas assez d'exercices disponibles (< 3 non tentés récemment), 
   // générer un nouveau exercice avec l'IA
   const MIN_AVAILABLE_EXERCISES = 3;
   const shouldGenerateNew = availableExercises.length < MIN_AVAILABLE_EXERCISES;
 
-  if (shouldGenerateNew) {
-    console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises} total`);
+  if (shouldGenerateNew && canGenerateWithPlatformTokens) {
+    console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises}/${MAX_EXERCISES_PER_SKILL} total`);
     
     // Tenter de générer un nouvel exercice avec l'IA
     try {
@@ -351,7 +368,7 @@ export async function getOrCreateExercise(
         }
 
         if (!error && savedExercise) {
-          console.log(`[AI] Nouvel exercice sauvegardé: ${savedExercise.id}`);
+          console.log(`[AI] Nouvel exercice sauvegardé: ${savedExercise.id} (${totalExercises + 1}/${MAX_EXERCISES_PER_SKILL})`);
           return {
             exercise: savedExercise as GeneratedExercise & { id: string },
             isNew: true,
@@ -363,6 +380,9 @@ export async function getOrCreateExercise(
     } catch (aiError) {
       console.error('[AI] Erreur génération exercice:', aiError);
     }
+  } else if (shouldGenerateNew && !canGenerateWithPlatformTokens) {
+    // Vision V2: Au-delà de 10 exercices, informer l'utilisateur
+    console.log(`[AI] Limite de ${MAX_EXERCISES_PER_SKILL} exercices atteinte pour cette compétence. Réutilisation des exercices existants.`);
   }
 
   // Prioriser les exercices par difficulté adaptée
