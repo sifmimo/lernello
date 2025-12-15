@@ -307,6 +307,56 @@ export async function getOrCreateExercise(
 
   // Filtrer les exercices non récemment tentés
   const availableExercises = allExercises?.filter(e => !recentIds.has(e.id)) || [];
+  const totalExercises = allExercises?.length || 0;
+
+  // Vision V2: Si pas assez d'exercices disponibles (< 3 non tentés récemment), 
+  // générer un nouveau exercice avec l'IA
+  const MIN_AVAILABLE_EXERCISES = 3;
+  const shouldGenerateNew = availableExercises.length < MIN_AVAILABLE_EXERCISES;
+
+  if (shouldGenerateNew) {
+    console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises} total`);
+    
+    // Tenter de générer un nouvel exercice avec l'IA
+    try {
+      const generatedExercise = await generateExerciseWithAI({
+        skillId: skill.id,
+        skillName: skill.name_key,
+        skillDescription: skill.description_key || '',
+        difficulty: recommendedDifficulty,
+        language,
+        pedagogicalMethod,
+        targetAge,
+      });
+
+      if (generatedExercise) {
+        // Sauvegarder l'exercice généré en base
+        const { data: savedExercise, error } = await supabase
+          .from('exercises')
+          .insert({
+            skill_id: skillId,
+            type: generatedExercise.type,
+            content: generatedExercise.content,
+            difficulty: generatedExercise.difficulty,
+            is_ai_generated: true,
+            is_validated: true,
+            language,
+          })
+          .select('id, type, content, difficulty')
+          .single();
+
+        if (!error && savedExercise) {
+          console.log(`[AI] Nouvel exercice généré et sauvegardé: ${savedExercise.id}`);
+          return {
+            exercise: savedExercise as GeneratedExercise & { id: string },
+            isNew: true,
+          };
+        }
+      }
+    } catch (aiError) {
+      console.error('[AI] Erreur génération exercice:', aiError);
+    }
+  }
 
   // Prioriser les exercices par difficulté adaptée
   const prioritizedExercises = availableExercises.sort((a, b) => {
@@ -326,7 +376,7 @@ export async function getOrCreateExercise(
     };
   }
 
-  // Si tous les exercices ont été faits récemment, en choisir un au hasard parmi tous
+  // Fallback: Si tous les exercices ont été faits récemment et génération échouée
   if (allExercises && allExercises.length > 0) {
     const randomExercise = allExercises[Math.floor(Math.random() * allExercises.length)];
     return {
