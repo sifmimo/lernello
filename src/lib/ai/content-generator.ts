@@ -330,6 +330,8 @@ export async function getOrCreateExercise(
       });
 
       if (generatedExercise) {
+        console.log(`[AI] Exercice généré avec succès, type: ${generatedExercise.type}`);
+        
         // Sauvegarder l'exercice généré en base
         const { data: savedExercise, error } = await supabase
           .from('exercises')
@@ -340,18 +342,23 @@ export async function getOrCreateExercise(
             difficulty: generatedExercise.difficulty,
             is_ai_generated: true,
             is_validated: true,
-            language,
           })
           .select('id, type, content, difficulty')
           .single();
 
+        if (error) {
+          console.error(`[AI] Erreur sauvegarde exercice:`, error);
+        }
+
         if (!error && savedExercise) {
-          console.log(`[AI] Nouvel exercice généré et sauvegardé: ${savedExercise.id}`);
+          console.log(`[AI] Nouvel exercice sauvegardé: ${savedExercise.id}`);
           return {
             exercise: savedExercise as GeneratedExercise & { id: string },
             isNew: true,
           };
         }
+      } else {
+        console.log(`[AI] generateExerciseWithAI a retourné null`);
       }
     } catch (aiError) {
       console.error('[AI] Erreur génération exercice:', aiError);
