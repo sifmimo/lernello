@@ -80,10 +80,32 @@ export default function SkillExercisePage() {
     const loadFirstExercise = async () => {
       const supabase = createClient();
       
+      // D'abord récupérer l'ID de la matière
+      const { data: subjectData } = await supabase
+        .from('subjects')
+        .select('id')
+        .eq('code', subject)
+        .single();
+
+      if (!subjectData) {
+        setLoading(false);
+        return;
+      }
+
+      // Récupérer les domaines de cette matière
+      const { data: domainsData } = await supabase
+        .from('domains')
+        .select('id')
+        .eq('subject_id', subjectData.id);
+
+      const domainIds = domainsData?.map(d => d.id) || [];
+
+      // Récupérer le skill en filtrant par les domaines de la matière
       const { data: skillData } = await supabase
         .from('skills')
-        .select('id, name_key, description_key')
+        .select('id, name_key, description_key, domain_id')
         .eq('code', skillCode)
+        .in('domain_id', domainIds)
         .single();
 
       if (!skillData) {
@@ -123,7 +145,7 @@ export default function SkillExercisePage() {
     };
     
     loadFirstExercise();
-  }, [router, skillCode]);
+  }, [router, skillCode, subject]);
 
   const currentExercise = exercises[currentIndex];
 

@@ -9,11 +9,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { subjectName, country, language, method, aiModelId } = await request.json();
+  const { subjectName, country, language, schoolLevel, method, aiModelId } = await request.json();
 
   if (!subjectName || !country || !language || !method) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
+
+  const schoolLevelNames: Record<string, string> = {
+    maternelle: 'Maternelle (3-5 ans)',
+    cp: 'CP (6 ans)',
+    ce1: 'CE1 (7 ans)',
+    ce2: 'CE2 (8 ans)',
+    cm1: 'CM1 (9 ans)',
+    cm2: 'CM2 (10 ans)',
+    primaire: 'Primaire (6-11 ans)',
+  };
+
+  const targetLevel = schoolLevelNames[schoolLevel] || schoolLevel || 'Primaire';
 
   const supabase = await createClient();
 
@@ -55,13 +67,18 @@ export async function POST(request: NextRequest) {
   // Générer la structure avec l'IA
   const prompt = `Tu es un expert en pédagogie et en programmes scolaires. Génère la structure complète pour la matière "${subjectName}" selon le programme officiel de ${countryNames[country] || country}.
 
+NIVEAU SCOLAIRE CIBLE: ${targetLevel}
+IMPORTANT: Le contenu DOIT être adapté au niveau ${targetLevel}. Les compétences, le vocabulaire et la complexité doivent correspondre à ce niveau scolaire.
+
 Méthode pédagogique à appliquer: ${methodData?.prompt_instructions || 'Approche classique et structurée.'}
 
 Tu dois générer en ${languageNames[language] || language}:
 1. Un code unique pour la matière (snake_case, ex: mathematiques, francais, sciences)
 2. Une icône emoji représentative
-3. Les modules (domaines) de cette matière avec leur ordre
-4. Pour chaque module, les compétences avec leur ordre et difficulté (1-5)
+3. Les modules (domaines) adaptés au niveau ${targetLevel} avec leur ordre
+4. Pour chaque module, les compétences adaptées au niveau ${targetLevel} avec leur ordre et difficulté (1-5)
+
+IMPORTANT: Les noms des modules et compétences doivent être des noms lisibles en ${languageNames[language] || language}, PAS des clés techniques.
 
 Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
 {

@@ -90,6 +90,24 @@ const skillNames: Record<string, string> = {
   'skills.protocoles_reseaux': 'Protocoles réseaux',
   'skills.gestion_processus': 'Gestion des processus',
   'skills.memoire_stockage': 'Mémoire et stockage',
+  utilisation_outils: 'Utilisation des outils',
+  algorithmes_basiques: 'Algorithmes basiques',
+  structure_controle: 'Structures de contrôle',
+  resolution_problemes: 'Résolution de problèmes',
+  programmation_objet: 'Programmation orientée objet',
+  gestion_projets: 'Gestion de projets',
+  'skills.utilisation_outils': 'Utilisation des outils',
+  'skills.algorithmes_basiques': 'Algorithmes basiques',
+  'skills.structure_controle': 'Structures de contrôle',
+  'skills.resolution_problemes': 'Résolution de problèmes',
+  'skills.programmation_objet': 'Programmation orientée objet',
+  'skills.gestion_projets': 'Gestion de projets',
+};
+
+const subjectNames: Record<string, string> = {
+  math: 'Mathématiques',
+  francais: 'Français',
+  informatique: 'Informatique',
 };
 
 const domainNames: Record<string, string> = {
@@ -105,6 +123,9 @@ const domainNames: Record<string, string> = {
   litterature: 'Littérature',
   reseaux: 'Réseaux',
   systemes_exploitation: 'Systèmes d\'exploitation',
+  initiation_programmation: 'Initiation à la programmation',
+  algorithmique: 'Algorithmique',
+  programmation_avancee: 'Programmation avancée',
   'domains.bases_programmation': 'Bases de la programmation',
   'domains.structures_donnees': 'Structures de données',
   'domains.lecture': 'Lecture',
@@ -112,6 +133,9 @@ const domainNames: Record<string, string> = {
   'domains.litterature': 'Littérature',
   'domains.reseaux': 'Réseaux',
   'domains.systemes_exploitation': 'Systèmes d\'exploitation',
+  'domains.initiation_programmation': 'Initiation à la programmation',
+  'domains.algorithmique': 'Algorithmique',
+  'domains.programmation_avancee': 'Programmation avancée',
 };
 
 const domainDescriptions: Record<string, string> = {
@@ -127,6 +151,9 @@ const domainDescriptions: Record<string, string> = {
   litterature: 'Analyse et histoire littéraire',
   reseaux: 'Protocoles et communication',
   systemes_exploitation: 'Gestion des ressources système',
+  initiation_programmation: 'Découverte des outils et concepts de base',
+  algorithmique: 'Structures de contrôle et résolution de problèmes',
+  programmation_avancee: 'Programmation orientée objet et gestion de projets',
   'domains.bases_programmation_desc': 'Variables, boucles et conditions',
   'domains.structures_donnees_desc': 'Tableaux, listes et arbres',
   'domains.lecture_desc': 'Compréhension et analyse de textes',
@@ -144,6 +171,8 @@ export default function SubjectPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [_profileName, setProfileName] = useState<string>('');
+  const [subjectName, setSubjectName] = useState<string>('');
+  const [translations, setTranslations] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const name = localStorage.getItem('activeProfileName');
@@ -160,7 +189,7 @@ export default function SubjectPage() {
     
     const { data: subjectData } = await supabase
       .from('subjects')
-      .select('id')
+      .select('id, name_key, code')
       .eq('code', subject)
       .single();
 
@@ -168,6 +197,22 @@ export default function SubjectPage() {
       setLoading(false);
       return;
     }
+    
+    // Charger les traductions depuis content_translations
+    const { data: translationsData } = await supabase
+      .from('content_translations')
+      .select('key, value')
+      .eq('language', 'fr');
+    
+    const translationsMap: Record<string, string> = {};
+    translationsData?.forEach(t => {
+      translationsMap[t.key] = t.value;
+    });
+    setTranslations(translationsMap);
+    
+    // Utiliser la traduction si disponible
+    const translatedName = translationsMap[subjectData.name_key] || subjectData.name_key || subjectData.code;
+    setSubjectName(translatedName);
 
     const { data: domainsData } = await supabase
       .from('domains')
@@ -246,7 +291,7 @@ export default function SubjectPage() {
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">Mathématiques</h1>
+            <h1 className="text-xl font-bold text-gray-900">{subjectNames[subject] || subjectName || subject}</h1>
             <p className="text-sm text-gray-500">Explore les domaines et progresse à ton rythme</p>
           </div>
           <div className="hidden sm:flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 px-4 py-2">
@@ -264,10 +309,10 @@ export default function SubjectPage() {
                 <span className="text-2xl">{domain.icon || '📚'}</span>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">
-                    {domainNames[domain.code] || domainNames[domain.name_key] || domain.name_key}
+                    {translations[domain.name_key] || domainNames[domain.code] || domainNames[domain.name_key] || domain.name_key}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {domainDescriptions[domain.code] || domainDescriptions[domain.name_key] || domainDescriptions[domain.name_key + '_desc'] || ''}
+                    {translations[domain.name_key + '_desc'] || domainDescriptions[domain.code] || domainDescriptions[domain.name_key] || ''}
                   </p>
                 </div>
               </div>
@@ -292,7 +337,7 @@ export default function SubjectPage() {
                         </div>
                         <div className="flex-1">
                           <h3 className="font-medium text-gray-500">
-                            {skillNames[skill.code] || skillNames[skill.name_key] || skill.name_key}
+                            {translations[skill.name_key] || skillNames[skill.code] || skillNames[skill.name_key] || skill.name_key}
                           </h3>
                           <p className="text-xs text-gray-400">Maîtrise la compétence précédente</p>
                         </div>
@@ -325,7 +370,7 @@ export default function SubjectPage() {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-900">
-                          {skillNames[skill.code] || skillNames[skill.name_key] || skill.name_key}
+                          {translations[skill.name_key] || skillNames[skill.code] || skillNames[skill.name_key] || skill.name_key}
                         </h3>
                         <div className="flex items-center gap-1 mt-1">
                           {[1, 2, 3, 4, 5].map((level) => (
