@@ -15,6 +15,12 @@ export async function fetchOrGenerateExercise(
     difficulty: number;
   };
   isAIGenerated?: boolean;
+  quotaInfo?: {
+    totalExercises: number;
+    maxExercises: number;
+    usePlatformTokens: boolean;
+    limitReached: boolean;
+  };
   error?: string;
 }> {
   try {
@@ -47,6 +53,7 @@ export async function fetchOrGenerateExercise(
         difficulty: result.exercise.difficulty,
       },
       isAIGenerated: result.isNew,
+      quotaInfo: result.quotaInfo,
     };
   } catch (error) {
     console.error('Error in fetchOrGenerateExercise:', error);

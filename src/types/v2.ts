@@ -228,3 +228,56 @@ export interface ContentValidationRequest {
   description?: string
   content?: string
 }
+
+// =============================================
+// PHASE 5: ADMIN ET TRADUCTIONS (V2)
+// =============================================
+
+export interface CountryProgram {
+  id: string
+  country_code: string
+  country_name: string
+  country_flag: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AIModelConfig {
+  id: string
+  provider: 'openai' | 'anthropic' | 'platform'
+  model_name: string
+  display_name: string
+  is_default: boolean
+  is_active: boolean
+  max_tokens: number
+  created_at: string
+}
+
+export interface ContentTranslation {
+  id: string
+  key: string
+  language: string
+  value: string
+  created_at: string
+  updated_at: string
+}
+
+export type ContentStatus = 'draft' | 'published'
+
+export interface SubjectExtended {
+  id: string
+  code: string
+  name_key: string
+  description_key: string | null
+  icon: string | null
+  sort_order: number
+  is_active: boolean
+  is_official: boolean
+  status: ContentStatus
+  language: string
+  method_code: string
+  country_program_id: string | null
+  created_at: string
+  updated_at: string
+}

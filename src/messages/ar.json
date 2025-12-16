@@ -70,7 +70,9 @@
     "enterPin": "أدخل رمز PIN"
   },
   "subjects": {
-    "math": "الرياضيات"
+    "math": "الرياضيات",
+    "francais": "الفرنسية",
+    "informatique": "المعلوميات"
   },
   "domains": {
     "numbers": "الأعداد",

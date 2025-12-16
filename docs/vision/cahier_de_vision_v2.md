@@ -156,6 +156,7 @@ L'administrateur peut **générer une matière complète** (avec ses modules et 
 - le **pays** (programme officiel de référence),
 - la **méthode pédagogique** à appliquer,
 - la **langue** de génération,
+- la **niveau scolaire** si la matière n'est pas disponible dans le programme officiel, créer une matière adaptée au niveau scolaire selectionné et signaler que la matière est ajoutée par la plateforme,
 - le **modèle IA** à utiliser pour la génération.
 
 L'IA génère alors :

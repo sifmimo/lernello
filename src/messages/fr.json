@@ -70,7 +70,9 @@
     "enterPin": "Entre le code PIN"
   },
   "subjects": {
-    "math": "Mathématiques"
+    "math": "Mathématiques",
+    "francais": "Français",
+    "informatique": "Informatique"
   },
   "domains": {
     "numbers": "Nombres",

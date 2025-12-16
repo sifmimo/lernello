@@ -121,7 +121,9 @@
     "generated_by_ai": "تمرين مُنشأ بالذكاء الاصطناعي"
   },
   "subjects": {
-    "math": "الرياضيات"
+    "math": "الرياضيات",
+    "francais": "الفرنسية",
+    "informatique": "المعلوميات"
   },
   "domains": {
     "numbers": "الأعداد",

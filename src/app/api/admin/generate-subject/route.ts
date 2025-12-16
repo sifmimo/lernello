@@ -152,16 +152,16 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
     }
 
     // Créer les modules (domains)
-    for (const module of generatedContent.modules) {
+    for (const domainModule of generatedContent.modules) {
       const { data: domain, error: domainError } = await supabase
         .from('domains')
         .insert({
           subject_id: subject.id,
-          code: module.code,
-          name_key: `domains.${module.code}`,
-          description_key: `domains.${module.code}_desc`,
+          code: domainModule.code,
+          name_key: `domains.${domainModule.code}`,
+          description_key: `domains.${domainModule.code}_desc`,
           icon: '📚',
-          sort_order: module.sort_order,
+          sort_order: domainModule.sort_order,
           status: 'draft',
         })
         .select()
@@ -173,7 +173,7 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
       }
 
       // Créer les compétences (skills)
-      for (const skill of module.skills) {
+      for (const skill of domainModule.skills) {
         await supabase.from('skills').insert({
           domain_id: domain.id,
           code: skill.code,
@@ -191,10 +191,10 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
       [`subjects.${generatedContent.code}_desc`]: generatedContent.description,
     };
 
-    for (const module of generatedContent.modules) {
-      translations[`domains.${module.code}`] = module.name;
-      translations[`domains.${module.code}_desc`] = module.description;
-      for (const skill of module.skills) {
+    for (const domainModule of generatedContent.modules) {
+      translations[`domains.${domainModule.code}`] = domainModule.name;
+      translations[`domains.${domainModule.code}_desc`] = domainModule.description;
+      for (const skill of domainModule.skills) {
         translations[`skills.${skill.code}`] = skill.name;
       }
     }

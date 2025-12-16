@@ -249,12 +249,19 @@ Génère UNIQUEMENT le JSON, rien d'autre.`;
   }
 }
 
+export interface ExerciseQuotaInfo {
+  totalExercises: number;
+  maxExercises: number;
+  usePlatformTokens: boolean;
+  limitReached: boolean;
+}
+
 export async function getOrCreateExercise(
   skillId: string,
   studentId: string,
   language: string = 'fr',
   pedagogicalMethod: string = 'standard'
-): Promise<{ exercise: GeneratedExercise & { id: string }; isNew: boolean } | null> {
+): Promise<{ exercise: GeneratedExercise & { id: string }; isNew: boolean; quotaInfo?: ExerciseQuotaInfo } | null> {
   const supabase = await createClient();
 
   // Récupérer les infos de la compétence
@@ -325,6 +332,14 @@ export async function getOrCreateExercise(
   // Vision V2 Section 11: Limite de 10 exercices par compétence via tokens plateforme
   const MAX_EXERCISES_PER_SKILL = 10;
   const canGenerateWithPlatformTokens = totalExercises < MAX_EXERCISES_PER_SKILL;
+  
+  // Préparer les informations de quota pour l'affichage utilisateur
+  const quotaInfo: ExerciseQuotaInfo = {
+    totalExercises,
+    maxExercises: MAX_EXERCISES_PER_SKILL,
+    usePlatformTokens: canGenerateWithPlatformTokens,
+    limitReached: !canGenerateWithPlatformTokens,
+  };
 
   // Vision V2: Si pas assez d'exercices disponibles (< 3 non tentés récemment), 
   // générer un nouveau exercice avec l'IA
@@ -332,7 +347,9 @@ export async function getOrCreateExercise(
   const shouldGenerateNew = availableExercises.length < MIN_AVAILABLE_EXERCISES;
 
   if (shouldGenerateNew && canGenerateWithPlatformTokens) {
-    console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises}/${MAX_EXERCISES_PER_SKILL} total`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises}/${MAX_EXERCISES_PER_SKILL} total`);
+    }
     
     // Tenter de générer un nouvel exercice avec l'IA
     try {
@@ -347,7 +364,6 @@ export async function getOrCreateExercise(
       });
 
       if (generatedExercise) {
-        console.log(`[AI] Exercice généré avec succès, type: ${generatedExercise.type}`);
         
         // Sauvegarder l'exercice généré en base
         const { data: savedExercise, error } = await supabase
@@ -364,25 +380,22 @@ export async function getOrCreateExercise(
           .single();
 
         if (error) {
-          console.error(`[AI] Erreur sauvegarde exercice:`, error);
+          if (process.env.NODE_ENV === 'development') console.error(`[AI] Erreur sauvegarde exercice:`, error);
         }
 
         if (!error && savedExercise) {
-          console.log(`[AI] Nouvel exercice sauvegardé: ${savedExercise.id} (${totalExercises + 1}/${MAX_EXERCISES_PER_SKILL})`);
           return {
             exercise: savedExercise as GeneratedExercise & { id: string },
             isNew: true,
+            quotaInfo: { ...quotaInfo, totalExercises: totalExercises + 1 },
           };
         }
-      } else {
-        console.log(`[AI] generateExerciseWithAI a retourné null`);
       }
     } catch (aiError) {
       console.error('[AI] Erreur génération exercice:', aiError);
     }
   } else if (shouldGenerateNew && !canGenerateWithPlatformTokens) {
     // Vision V2: Au-delà de 10 exercices, informer l'utilisateur
-    console.log(`[AI] Limite de ${MAX_EXERCISES_PER_SKILL} exercices atteinte pour cette compétence. Réutilisation des exercices existants.`);
   }
 
   // Prioriser les exercices par difficulté adaptée
@@ -400,6 +413,7 @@ export async function getOrCreateExercise(
     return {
       exercise: randomExercise as GeneratedExercise & { id: string },
       isNew: false,
+      quotaInfo,
     };
   }
 
@@ -409,6 +423,7 @@ export async function getOrCreateExercise(
     return {
       exercise: randomExercise as GeneratedExercise & { id: string },
       isNew: false,
+      quotaInfo,
     };
   }
 
@@ -442,19 +457,20 @@ export async function getOrCreateExercise(
 
     if (error) {
       console.error('Error saving generated exercise (RLS?):', error);
-      // Retourner l'exercice généré sans ID (ne sera pas sauvegardé)
       return {
         exercise: {
           id: `temp-${Date.now()}`,
           ...generatedExercise,
         } as GeneratedExercise & { id: string },
         isNew: true,
+        quotaInfo: { ...quotaInfo, totalExercises: 1 },
       };
     }
 
     return {
       exercise: savedExercise as GeneratedExercise & { id: string },
       isNew: true,
+      quotaInfo: { ...quotaInfo, totalExercises: 1 },
     };
   } catch (error) {
     console.error('Error generating exercise:', error);

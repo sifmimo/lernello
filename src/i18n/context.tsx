@@ -22,8 +22,10 @@ const I18nContext = createContext<I18nContextType | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Language>('fr');
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const saved = localStorage.getItem('preferredLanguage') as Language;
     if (saved && translations[saved]) {
       setLangState(saved);

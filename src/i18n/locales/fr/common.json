@@ -139,7 +139,9 @@
     "generated_by_ai": "Exercice généré par IA"
   },
   "subjects": {
-    "math": "Mathématiques"
+    "math": "Mathématiques",
+    "francais": "Français",
+    "informatique": "Informatique"
   },
   "domains": {
     "numbers": "Nombres et numération",
