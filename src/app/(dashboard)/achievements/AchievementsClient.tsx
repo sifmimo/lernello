@@ -12,6 +12,7 @@ import {
   Lock
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { Lumi } from '@/components/lumi';
 
 interface Achievement {
   id: string;
@@ -158,10 +159,15 @@ export default function AchievementsPage() {
     );
   }
 
+  const lumiMood = earnedAchievements.length > 0 ? 'proud' : 'encouraging';
+  const lumiMessage = earnedAchievements.length > 0 
+    ? `Bravo ! Tu as déjà ${earnedAchievements.length} récompenses ! Continue comme ça ! 🌟`
+    : 'Chaque exercice te rapproche d\'une nouvelle récompense ! 💪';
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
-      <div className="mb-8 text-center">
-        <Trophy className="mx-auto h-16 w-16 text-yellow-500" />
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Lumi mood={lumiMood} size="lg" message={lumiMessage} showMessage={true} />
         <h1 className="mt-4 text-3xl font-bold text-gray-900">Mes Récompenses</h1>
         <p className="mt-2 text-gray-600">
           {earnedAchievements.length} / {allRules.length} débloquées

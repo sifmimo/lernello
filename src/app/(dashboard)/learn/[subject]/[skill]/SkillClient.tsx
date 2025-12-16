@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle, Star, Loader2, Wand2, BookOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getAIHint, getEncouragement } from '@/server/actions/ai';
+import { Lumi } from '@/components/lumi';
+import { playSound } from '@/lib/sounds';
+import { VictoryCelebration } from '@/components/animations';
 import { fetchOrGenerateExercise, submitAnswerAndGetNext, rateExercise } from '@/server/actions/content';
 import SkillTheory from '@/components/learning/SkillTheory';
 import { getSkillContent } from '@/server/actions/skill-content';
@@ -69,6 +72,9 @@ export default function SkillExercisePage() {
   const [skillName, setSkillName] = useState('');
   const [currentSkillLevel, setCurrentSkillLevel] = useState(1);
   const [correctCount, setCorrectCount] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationType, setCelebrationType] = useState<'correct' | 'streak' | 'levelUp'>('correct');
+  const [streakCount, setStreakCount] = useState(0);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -174,20 +180,38 @@ export default function SkillExercisePage() {
     setShowHint(false);
 
     if (correct) {
+      playSound('correct');
+      const newStreak = streakCount + 1;
+      setStreakCount(newStreak);
       setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
+      
+      // Célébration selon le streak
+      if (newStreak >= 5 && newStreak % 5 === 0) {
+        setCelebrationType('streak');
+        setShowCelebration(true);
+        playSound('streak');
+        setTimeout(() => setShowCelebration(false), 2500);
+      } else {
+        setCelebrationType('correct');
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 1500);
+      }
+      
       // Générer un encouragement IA
-      getEncouragement(stats.correct >= 2 ? 'streak' : 'correct', stats.correct + 1)
+      getEncouragement(newStreak >= 3 ? 'streak' : 'correct', newStreak)
         .then(msg => setAiEncouragement(msg))
-        .catch(() => setAiEncouragement('Bravo ! \ud83c\udf89'));
+        .catch(() => setAiEncouragement('Bravo ! 🎉'));
     } else {
+      playSound('incorrect');
+      setStreakCount(0);
       getEncouragement('incorrect')
         .then(msg => setAiEncouragement(msg))
-        .catch(() => setAiEncouragement('Continue, tu vas y arriver ! \ud83d\udcaa'));
+        .catch(() => setAiEncouragement('Continue, tu vas y arriver ! 💪'));
     }
 
     // Sauvegarder la tentative
     saveAttempt(correct);
-  }, [currentExercise, selectedAnswer, inputAnswer, fillBlankAnswers, dragDropOrder, showResult]);
+  }, [currentExercise, selectedAnswer, inputAnswer, fillBlankAnswers, dragDropOrder, showResult, streakCount]);
 
   const saveAttempt = async (_correct: boolean) => {
     // La sauvegarde est gérée par submitAnswerAndGetNext dans nextExercise
@@ -412,8 +436,19 @@ export default function SkillExercisePage() {
   const prevLevelThreshold = levelThresholds[currentSkillLevel - 1] || 0;
   const progressToNextLevel = Math.min(100, Math.round(((correctCount - prevLevelThreshold) / (nextLevelThreshold - prevLevelThreshold)) * 100));
 
+  const lumiMood = showResult 
+    ? (isCorrect ? 'celebrating' : 'encouraging') 
+    : (showHint ? 'thinking' : 'happy');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <VictoryCelebration 
+        active={showCelebration} 
+        type={celebrationType} 
+        streakCount={streakCount}
+        xpGained={isCorrect ? 10 : 0}
+      />
+      
       <header className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <Link href={`/learn/${subject}`} className="rounded-lg p-2 hover:bg-gray-100">
@@ -477,6 +512,16 @@ export default function SkillExercisePage() {
               <SkillTheory skillId={skillId} skillName={skillName} />
             </div>
           )}
+
+          {/* Lumi companion */}
+          <div className="mb-6 flex justify-center">
+            <Lumi 
+              mood={lumiMood} 
+              size="md" 
+              message={aiEncouragement || undefined}
+              showMessage={showResult && !!aiEncouragement}
+            />
+          </div>
 
           {/* AI Badge - visible indicator */}
           <div className="mb-4 flex flex-wrap justify-center gap-2">
