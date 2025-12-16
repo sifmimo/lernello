@@ -12,10 +12,9 @@ Ton objectif est de transformer une vision produit ambitieuse en une application
 CONTEXTE
 Tu as accès :
 - à la DERNIÈRE VERSION DU CAHIER DE VISION (document versionné)
-- au document d’ÉVOLUTIONS / AMÉLIORATIONS validé issu de ce cahier de vision
 Ces documents constituent la source de vérité du projet.
 
-OBJECTIF PRINCIPAL
+OBJECTIF PRINCIPAL (dans une nouvelle branche git)
 Concevoir, développer et livrer une application qui :
 - respecte fidèlement la vision produit
 - matérialise l’expérience utilisateur unique définie

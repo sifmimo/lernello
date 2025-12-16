@@ -237,6 +237,162 @@ Un widget sur l'écran d'accueil du téléphone/tablette qui propose "Le défi d
 
 ---
 
+## 3.5 Évolutions fonctionnalités Administrateur
+
+### 🎛️ Dashboard Admin Analytics Avancé
+
+**Concept** : Un tableau de bord temps réel pour piloter la plateforme avec des données actionnables.
+
+**Fonctionnalités** :
+- **Métriques clés en temps réel** : utilisateurs actifs, sessions, taux de complétion, revenus
+- **Cartes de chaleur d'utilisation** : visualiser les pics d'activité par heure/jour
+- **Funnel de conversion** : inscription → activation → rétention → premium
+- **Alertes automatiques** : notification si métrique critique chute
+- **Export de rapports** : PDF/CSV pour reporting externe
+
+**Bénéfice** : Décisions data-driven, détection rapide des problèmes
+
+---
+
+### 🤖 Centre de Contrôle IA
+
+**Concept** : Interface dédiée à la gestion et au monitoring de l'IA pédagogique.
+
+**Fonctionnalités** :
+- **Tableau de bord consommation IA** : tokens utilisés, coûts par fonctionnalité, tendances
+- **Gestion des modèles** : switcher entre modèles IA (GPT-4, Claude, etc.) par fonctionnalité
+- **Qualité de génération** : score de qualité des contenus générés, taux de signalement
+- **Cache intelligent** : visualiser le taux de hit/miss, optimiser les coûts
+- **Playground de test** : tester les prompts avant déploiement en production
+- **Historique des générations** : audit trail complet des contenus IA
+
+**Bénéfice** : Maîtrise des coûts IA, amélioration continue de la qualité
+
+---
+
+### 📚 Gestionnaire de Contenu Pédagogique Enrichi
+
+**Améliorations du CRUD existant** :
+
+| Fonctionnalité | Description |
+|----------------|-------------|
+| **Import/Export en masse** | Importer des matières/modules/compétences via CSV/JSON |
+| **Duplication intelligente** | Cloner une matière pour un autre pays/langue |
+| **Versioning** | Historique des modifications avec rollback possible |
+| **Workflow de validation** | Brouillon → Review → Publié avec rôles distincts |
+| **Prévisualisation élève** | Voir le contenu comme un élève le verrait |
+| **Statistiques par contenu** | Taux de réussite, temps moyen, abandons par compétence |
+| **Signalements utilisateurs** | File de modération des contenus signalés |
+| **Tags et métadonnées** | Classification avancée pour recherche et filtrage |
+
+---
+
+### 👥 Gestion Utilisateurs Avancée
+
+**Fonctionnalités** :
+- **Recherche avancée** : filtres multiples (pays, langue, statut, activité, premium)
+- **Segmentation** : créer des cohortes d'utilisateurs pour analyse
+- **Actions en masse** : envoyer notifications, modifier statuts, export
+- **Profil utilisateur détaillé** : historique complet, progression, support tickets
+- **Impersonation sécurisée** : voir l'app comme un utilisateur (pour debug/support)
+- **Gestion des signalements** : contenus utilisateurs problématiques
+- **Blocage/Suspension** : avec motif et notification automatique
+
+**Bénéfice** : Support efficace, modération simplifiée
+
+---
+
+### 📊 A/B Testing Intégré
+
+**Concept** : Tester des variations de fonctionnalités sur des cohortes d'utilisateurs.
+
+**Fonctionnalités** :
+- **Création d'expériences** : définir variantes, audience, durée
+- **Métriques de succès** : définir les KPIs à mesurer
+- **Résultats statistiques** : significativité, intervalle de confiance
+- **Déploiement progressif** : rollout graduel des variantes gagnantes
+- **Historique** : archive des tests passés et apprentissages
+
+**Cas d'usage** :
+- Tester différents onboardings
+- Comparer des formulations de feedback
+- Optimiser la gamification
+
+---
+
+### 🔔 Système de Notifications Admin
+
+**Fonctionnalités** :
+- **Notifications push ciblées** : créer et envoyer des notifications par segment
+- **Templates réutilisables** : bibliothèque de messages prédéfinis
+- **Planification** : programmer des envois différés
+- **Analytics** : taux d'ouverture, de clic, de conversion
+- **Notifications in-app** : annonces, maintenance, nouveautés
+
+---
+
+### 🛡️ Sécurité et Conformité
+
+**Fonctionnalités** :
+- **Logs d'audit** : toutes les actions admin tracées
+- **Rôles et permissions granulaires** : super-admin, admin contenu, support, etc.
+- **2FA obligatoire** : authentification renforcée pour admins
+- **Rapports RGPD** : export données utilisateur, demandes de suppression
+- **Alertes de sécurité** : tentatives de connexion suspectes
+- **Dashboard conformité** : statut des consentements, politique de rétention
+
+---
+
+### 📈 Outils de Croissance
+
+**Fonctionnalités** :
+- **Gestion des codes promo** : création, limites, tracking
+- **Programme de parrainage** : configuration des récompenses
+- **Intégration CRM** : sync avec outils marketing externes
+- **Campagnes email** : templates, segmentation, analytics
+- **Gestion des abonnements** : modification, remboursements, extensions
+
+---
+
+### 🌍 Gestion Multi-pays / Multi-langue
+
+**Fonctionnalités** :
+- **Configuration par pays** : devise, TVA, mentions légales
+- **Traductions** : interface de traduction intégrée avec suggestions IA
+- **Statut de couverture** : visualiser les matières/langues disponibles par pays
+- **Déploiement progressif** : activer un nouveau pays graduellement
+- **Équipes locales** : permissions par région
+
+---
+
+### 🔧 Outils Techniques
+
+**Fonctionnalités** :
+- **Status page** : monitoring des services en temps réel
+- **Feature flags** : activer/désactiver des fonctionnalités sans déploiement
+- **Mode maintenance** : message personnalisé pendant les interventions
+- **Jobs planifiés** : visualiser et gérer les tâches de fond
+- **Logs applicatifs** : recherche et filtrage des erreurs
+- **Performance** : temps de réponse API, requêtes lentes
+
+---
+
+### Priorités Admin
+
+| Priorité | Fonctionnalité | Horizon |
+|----------|---------------|---------|
+| 🔴 P0 | Dashboard Analytics de base | Court terme |
+| 🔴 P0 | Centre de Contrôle IA (coûts) | Court terme |
+| 🔴 P0 | Gestion utilisateurs avancée | Court terme |
+| 🟠 P1 | Gestionnaire contenu enrichi | Moyen terme |
+| 🟠 P1 | Système de notifications | Moyen terme |
+| 🟠 P1 | Sécurité et conformité | Moyen terme |
+| 🟡 P2 | A/B Testing | Long terme |
+| 🟡 P2 | Outils de croissance | Long terme |
+| 🟢 P3 | Multi-pays avancé | Long terme |
+
+---
+
 # PARTIE 4 : EXPÉRIENCE UTILISATEUR ET ÉMOTIONNELLE
 
 ## 4.1 Parcours utilisateur idéal
