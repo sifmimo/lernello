@@ -13,6 +13,20 @@ import {
 export default function AdminPage() {
   const adminSections = [
     {
+      title: 'Analytics Avancées',
+      description: 'Métriques détaillées et tendances',
+      icon: BarChart3,
+      href: '/admin/analytics',
+      color: 'bg-indigo-500',
+    },
+    {
+      title: 'Centre de Contrôle IA',
+      description: 'Monitoring coûts et configuration IA',
+      icon: Sparkles,
+      href: '/admin/ai-control',
+      color: 'bg-purple-500',
+    },
+    {
       title: 'Programmes scolaires',
       description: 'Générer et gérer les programmes par pays',
       icon: Globe,
@@ -31,7 +45,7 @@ export default function AdminPage() {
       description: 'Configurer les méthodes et styles',
       icon: GraduationCap,
       href: '/admin/methods',
-      color: 'bg-purple-500',
+      color: 'bg-teal-500',
     },
     {
       title: 'Génération IA',
@@ -49,10 +63,10 @@ export default function AdminPage() {
     },
     {
       title: 'Statistiques',
-      description: 'Tableau de bord analytique',
+      description: 'Tableau de bord analytique basique',
       icon: BarChart3,
       href: '/admin/stats',
-      color: 'bg-indigo-500',
+      color: 'bg-gray-500',
     },
   ];
 

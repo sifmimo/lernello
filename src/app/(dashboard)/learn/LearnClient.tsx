@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Calculator, Globe, Palette, Music, FlaskConical, ChevronRight, User, Trophy, Star, Flame, Code, Languages } from 'lucide-react';
+import { BookOpen, Calculator, Globe, Palette, Music, FlaskConical, ChevronRight, User, Trophy, Star, Flame, Code, Languages, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useI18n } from '@/i18n/context';
+import { Lumi } from '@/components/lumi';
+import QuickSession from '@/components/learning/QuickSession';
 
 interface Subject {
   id: string;
@@ -56,14 +58,18 @@ export default function LearnPage() {
     level: 1,
   });
   const [loading, setLoading] = useState(true);
+  const [showQuickSession, setShowQuickSession] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   useEffect(() => {
     const name = localStorage.getItem('activeProfileName');
-    if (!name) {
+    const id = localStorage.getItem('activeProfileId');
+    if (!name || !id) {
       router.push('/profiles');
       return;
     }
     setProfileName(name);
+    setProfileId(id);
     loadSubjects();
     loadProgress();
   }, [router]);
@@ -121,25 +127,41 @@ export default function LearnPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Quick Session Modal */}
+      {showQuickSession && profileId && (
+        <QuickSession
+          profileId={profileId}
+          profileName={profileName}
+          onClose={() => setShowQuickSession(false)}
+        />
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">
-              {profileName.charAt(0).toUpperCase()}
-            </div>
+            <Lumi mood="happy" size="sm" showMessage={false} />
             <div>
               <h1 className="text-lg font-bold text-gray-900">Bonjour, {profileName} !</h1>
               <p className="text-sm text-gray-500">Prêt(e) à apprendre ?</p>
             </div>
           </div>
-          <button
-            onClick={handleSwitchProfile}
-            className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <User className="h-4 w-4" />
-            Changer de profil
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowQuickSession(true)}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white hover:from-purple-700 hover:to-indigo-700 transition-all"
+            >
+              <Zap className="h-4 w-4" />
+              3 min chrono
+            </button>
+            <button
+              onClick={handleSwitchProfile}
+              className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              <User className="h-4 w-4" />
+              Changer de profil
+            </button>
+          </div>
         </div>
       </header>
 
