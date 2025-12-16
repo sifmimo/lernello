@@ -13,7 +13,11 @@ import {
   Calendar,
   BookOpen,
   Star,
-  Flame
+  Flame,
+  AlertTriangle,
+  CheckCircle,
+  Lightbulb,
+  ArrowRight
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ProgressChart, DonutChart } from '@/components/charts';
@@ -22,6 +26,16 @@ interface StudentProfile {
   id: string;
   display_name: string;
   avatar_url: string | null;
+}
+
+interface SkillProgress {
+  id: string;
+  name: string;
+  masteryLevel: number;
+  attemptsCount: number;
+  correctCount: number;
+  lastAttempt: string | null;
+  status: 'mastered' | 'in_progress' | 'struggling' | 'not_started';
 }
 
 interface StudentStats {
@@ -36,6 +50,8 @@ interface StudentStats {
     exercisesCompleted: number;
     correctAnswers: number;
   }[];
+  skillsProgress: SkillProgress[];
+  strugglingSkills: SkillProgress[];
 }
 
 export default function ParentDashboardPage() {
@@ -83,7 +99,19 @@ export default function ParentDashboardPage() {
 
     const { data: progress } = await supabase
       .from('student_skill_progress')
-      .select('mastery_level, attempts_count, correct_count, best_streak')
+      .select(`
+        skill_id,
+        mastery_level, 
+        attempts_count, 
+        correct_count, 
+        best_streak,
+        last_attempt_at,
+        skills (
+          id,
+          name_key,
+          code
+        )
+      `)
       .eq('student_id', profileId);
 
     const { data: sessions } = await supabase
@@ -92,6 +120,16 @@ export default function ParentDashboardPage() {
       .eq('student_id', profileId)
       .order('started_at', { ascending: false })
       .limit(7);
+
+    const { data: translationsData } = await supabase
+      .from('content_translations')
+      .select('key, value')
+      .eq('language', 'fr');
+
+    const translations: Record<string, string> = {};
+    (translationsData || []).forEach((t: { key: string; value: string }) => {
+      translations[t.key] = t.value;
+    });
 
     if (progress) {
       const totalSkills = progress.length;
@@ -110,6 +148,45 @@ export default function ParentDashboardPage() {
         correctAnswers: s.correct_answers || 0,
       }));
 
+      const skillsProgress: SkillProgress[] = progress.map((p: { 
+        skill_id: string; 
+        mastery_level: number; 
+        attempts_count: number; 
+        correct_count: number; 
+        last_attempt_at: string | null;
+        skills: { id: string; name_key: string; code: string } | { id: string; name_key: string; code: string }[] | null;
+      }) => {
+        const skillData = p.skills;
+        const skill = Array.isArray(skillData) ? skillData[0] : skillData;
+        const masteryLevel = p.mastery_level || 0;
+        const attemptsCount = p.attempts_count || 0;
+        const correctCount = p.correct_count || 0;
+        const accuracyRate = attemptsCount > 0 ? (correctCount / attemptsCount) * 100 : 0;
+        
+        let status: 'mastered' | 'in_progress' | 'struggling' | 'not_started' = 'not_started';
+        if (attemptsCount === 0) {
+          status = 'not_started';
+        } else if (masteryLevel >= 80) {
+          status = 'mastered';
+        } else if (attemptsCount >= 5 && accuracyRate < 50) {
+          status = 'struggling';
+        } else {
+          status = 'in_progress';
+        }
+
+        return {
+          id: p.skill_id,
+          name: skill ? (translations[skill.name_key] || skill.code) : 'Compétence',
+          masteryLevel,
+          attemptsCount,
+          correctCount,
+          lastAttempt: p.last_attempt_at,
+          status,
+        };
+      });
+
+      const strugglingSkills = skillsProgress.filter(s => s.status === 'struggling');
+
       setStats({
         totalSkills,
         masteredSkills,
@@ -118,6 +195,8 @@ export default function ParentDashboardPage() {
         accuracy,
         bestStreak,
         recentActivity,
+        skillsProgress,
+        strugglingSkills,
       });
     }
   };
@@ -358,6 +437,101 @@ export default function ParentDashboardPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Section Blocages et Conseils - Vision V2 Section 14 */}
+          {stats.strugglingSkills.length > 0 && (
+            <div className="mt-6 rounded-xl bg-white p-6 shadow-sm border-l-4 border-orange-400">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Compétences nécessitant de l'attention
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Ces compétences semblent poser des difficultés. Voici des conseils pour accompagner votre enfant.
+              </p>
+              <div className="space-y-4">
+                {stats.strugglingSkills.slice(0, 5).map((skill) => (
+                  <div key={skill.id} className="rounded-lg bg-orange-50 p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{skill.name}</h4>
+                        <div className="mt-1 flex items-center gap-4 text-sm text-gray-600">
+                          <span>{skill.attemptsCount} essais</span>
+                          <span>•</span>
+                          <span className="text-orange-600 font-medium">
+                            {skill.attemptsCount > 0 
+                              ? Math.round((skill.correctCount / skill.attemptsCount) * 100) 
+                              : 0}% de réussite
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+                        <span className="text-sm font-bold text-orange-600">
+                          {skill.masteryLevel}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-start gap-2 rounded-lg bg-white p-3">
+                      <Lightbulb className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-gray-700">
+                        <p className="font-medium text-gray-900 mb-1">Conseil d'accompagnement</p>
+                        <p>
+                          {skill.attemptsCount >= 10 
+                            ? "Prenez le temps de revoir les bases avec votre enfant. Utilisez des exemples concrets du quotidien pour illustrer les concepts."
+                            : skill.correctCount === 0
+                            ? "Encouragez votre enfant à persévérer. Proposez-lui de refaire les exercices ensemble pour identifier les points de blocage."
+                            : "Votre enfant progresse mais a besoin de consolidation. Célébrez les petites victoires et proposez des sessions courtes mais régulières."
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section Compétences maîtrisées */}
+          {stats.skillsProgress.filter(s => s.status === 'mastered').length > 0 && (
+            <div className="mt-6 rounded-xl bg-white p-6 shadow-sm border-l-4 border-green-400">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                Compétences maîtrisées
+              </h3>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {stats.skillsProgress
+                  .filter(s => s.status === 'mastered')
+                  .slice(0, 9)
+                  .map((skill) => (
+                    <div 
+                      key={skill.id} 
+                      className="flex items-center gap-2 rounded-lg bg-green-50 p-3"
+                    >
+                      <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                      <span className="text-sm font-medium text-gray-900 truncate">
+                        {skill.name}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+              {stats.skillsProgress.filter(s => s.status === 'mastered').length > 9 && (
+                <p className="mt-3 text-sm text-gray-500 text-center">
+                  + {stats.skillsProgress.filter(s => s.status === 'mastered').length - 9} autres compétences maîtrisées
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Lien vers les rapports détaillés */}
+          <div className="mt-6">
+            <Link
+              href="/parent/reports"
+              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-50 p-4 text-indigo-700 font-medium hover:bg-indigo-100 transition-colors"
+            >
+              <BookOpen className="h-5 w-5" />
+              Voir les rapports détaillés
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </>
       )}

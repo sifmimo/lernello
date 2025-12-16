@@ -402,37 +402,25 @@ export default function SubjectDetailPage({ params }: { params: Promise<{ id: st
                 <div className="border-t p-4 bg-muted/30">
                   <div className="space-y-2">
                     {domain.skills?.sort((a, b) => a.sort_order - b.sort_order).map((skill) => (
-                      <div key={skill.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
-                        <div className="flex items-center gap-3">
+                      <div key={skill.id} className="flex items-center justify-between p-3 bg-background rounded-lg border hover:border-primary/50 transition-colors">
+                        <Link
+                          href={`/admin/subjects/${subject.id}/skills/${skill.id}`}
+                          className="flex items-center gap-3 flex-1"
+                        >
                           <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                             Niv. {skill.difficulty_level}
                           </span>
-                          {editingItem === skill.name_key ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                className="border rounded px-2 py-1"
-                                autoFocus
-                              />
-                              <button onClick={() => updateTranslation(skill.name_key, editValue)} className="p-1 text-green-600">
-                                <Check className="h-4 w-4" />
-                              </button>
-                              <button onClick={() => setEditingItem(null)} className="p-1 text-red-600">
-                                <X className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span 
-                              className="cursor-pointer hover:text-primary"
-                              onClick={() => startEdit(skill.name_key, getName(skill.name_key))}
-                            >
-                              {getName(skill.name_key)}
-                              <Edit className="inline h-3 w-3 ml-1 opacity-50" />
-                            </span>
-                          )}
-                        </div>
+                          <span className="hover:text-primary">
+                            {getName(skill.name_key)}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            skill.status === 'published' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {skill.status === 'published' ? 'Publié' : 'Brouillon'}
+                          </span>
+                        </Link>
                         <button
                           onClick={() => deleteSkill(skill.id)}
                           className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
