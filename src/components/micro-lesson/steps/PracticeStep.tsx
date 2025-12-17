@@ -24,6 +24,33 @@ export function PracticeStep({ practice, subjectColor, onComplete }: PracticeSte
   const currentExercise = exercises[currentExerciseIndex];
   const totalExercises = exercises.length;
 
+  // Si pas d'exercices, afficher un message et permettre de continuer
+  if (!exercises.length || !currentExercise) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div
+            className="p-2 rounded-full"
+            style={{ backgroundColor: `${subjectColor}20` }}
+          >
+            <Target className="h-5 w-5" style={{ color: subjectColor }} />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800">Pratique</h3>
+        </div>
+        <div className="p-5 rounded-2xl bg-white border-2 border-gray-100 shadow-sm text-center">
+          <p className="text-gray-600 mb-4">Les exercices de pratique arrivent bientôt !</p>
+          <button
+            onClick={() => onComplete(100)}
+            className="px-6 py-3 rounded-xl text-white font-medium transition-all hover:shadow-lg"
+            style={{ backgroundColor: subjectColor }}
+          >
+            Continuer →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const checkAnswer = useCallback((exercise: PracticeExercise, answer: string): boolean => {
     const normalizedAnswer = answer.trim().toLowerCase();
     const normalizedExpected = exercise.expected_answer.trim().toLowerCase();
@@ -68,28 +95,46 @@ export function PracticeStep({ practice, subjectColor, onComplete }: PracticeSte
 
   const renderInput = () => {
     const value = answers[currentExerciseIndex] || '';
+    const inputType = currentExercise?.input_type;
 
-    switch (currentExercise.input_type) {
+    // Si des options sont disponibles, afficher un sélecteur
+    if (currentExercise?.options && currentExercise.options.length > 0) {
+      return (
+        <div className="grid grid-cols-2 gap-3">
+          {currentExercise.options.map((option, index) => (
+            <motion.button
+              key={index}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleInputChange(option)}
+              disabled={showFeedback}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                value === option
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              } ${showFeedback ? 'opacity-70' : ''}`}
+            >
+              <span className="font-medium">{option}</span>
+            </motion.button>
+          ))}
+        </div>
+      );
+    }
+
+    // Sinon, selon le type d'input
+    switch (inputType) {
       case 'select':
+      case 'tap':
+        // Fallback si pas d'options mais type select/tap
         return (
-          <div className="grid grid-cols-2 gap-3">
-            {currentExercise.options?.map((option, index) => (
-              <motion.button
-                key={index}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleInputChange(option)}
-                disabled={showFeedback}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  value === option
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                } ${showFeedback ? 'opacity-70' : ''}`}
-              >
-                <span className="font-medium">{option}</span>
-              </motion.button>
-            ))}
-          </div>
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => handleInputChange(e.target.value)}
+            disabled={showFeedback}
+            className="w-full p-4 text-lg rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+            placeholder="Ta réponse..."
+          />
         );
 
       case 'number':
@@ -105,7 +150,9 @@ export function PracticeStep({ practice, subjectColor, onComplete }: PracticeSte
         );
 
       case 'text':
+      case 'drag':
       default:
+        // Fallback par défaut : champ texte
         return (
           <input
             type="text"
