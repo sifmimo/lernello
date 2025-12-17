@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Zap, X, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { Clock, Zap, X, CheckCircle, XCircle, ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { Lumi } from '@/components/lumi';
 import { VictoryCelebration } from '@/components/animations';
 import { playSound } from '@/lib/sounds';
 import { createClient } from '@/lib/supabase/client';
 import { fetchOrGenerateExercise, submitAnswerAndGetNext } from '@/server/actions/content';
+import { updateDailyStreak } from '@/server/actions/streaks';
+import { addXp } from '@/server/actions/xp';
+import { tts } from '@/lib/tts';
 
 interface QuickSessionProps {
   onClose: () => void;
@@ -23,6 +26,8 @@ interface Exercise {
     options?: string[];
     correct?: number;
     answer?: string;
+    text?: string;
+    blanks?: string[];
   };
   difficulty: number;
 }
@@ -36,6 +41,7 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
   const [skillId, setSkillId] = useState<string | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | string | null>(null);
   const [inputAnswer, setInputAnswer] = useState('');
+  const [fillBlankAnswers, setFillBlankAnswers] = useState<string[]>([]);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,6 +49,7 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
   const [stats, setStats] = useState({ total: 0, correct: 0, xpEarned: 0 });
   const [showCelebration, setShowCelebration] = useState(false);
   const [exerciseStartTime, setExerciseStartTime] = useState<Date>(new Date());
+  const [ttsEnabled, setTtsEnabled] = useState(true);
 
   useEffect(() => {
     loadRandomExercise();
@@ -87,6 +94,27 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
     setLoading(false);
   };
 
+  // Lecture vocale de la question
+  useEffect(() => {
+    if (exercise && ttsEnabled && !showResult && !loading) {
+      tts.stop();
+      const timer = setTimeout(() => {
+        tts.speakQuestion(exercise.content.question);
+      }, 300);
+      return () => {
+        clearTimeout(timer);
+        tts.stop();
+      };
+    }
+    return () => tts.stop();
+  }, [exercise?.id, ttsEnabled, showResult, loading]);
+
+  const speakQuestion = () => {
+    if (exercise) {
+      tts.speakQuestion(exercise.content.question);
+    }
+  };
+
   const checkAnswer = useCallback(() => {
     if (!exercise || showResult) return;
 
@@ -95,6 +123,11 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
       correct = selectedAnswer === exercise.content.correct;
     } else if (exercise.type === 'free_input') {
       correct = inputAnswer.trim().toLowerCase() === exercise.content.answer?.toLowerCase();
+    } else if (exercise.type === 'fill_blank') {
+      const blanks = exercise.content.blanks || [];
+      correct = blanks.every((blank, i) => 
+        fillBlankAnswers[i]?.trim().toLowerCase() === blank.toLowerCase()
+      );
     }
 
     setIsCorrect(correct);
@@ -109,6 +142,10 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
         xpEarned: prev.xpEarned + xp
       }));
       
+      // Mettre à jour streak et XP en base
+      updateDailyStreak(profileId).catch(console.error);
+      addXp(profileId, xp, 'quick_session').catch(console.error);
+      
       if ((stats.correct + 1) % 3 === 0) {
         setShowCelebration(true);
         playSound('streak');
@@ -118,7 +155,7 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
       playSound('incorrect');
       setStats(prev => ({ ...prev, total: prev.total + 1 }));
     }
-  }, [exercise, selectedAnswer, inputAnswer, showResult, stats.correct]);
+  }, [exercise, selectedAnswer, inputAnswer, fillBlankAnswers, showResult, stats.correct]);
 
   const nextExercise = async () => {
     if (!skillId || !exercise) return;
@@ -143,6 +180,7 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
 
     setSelectedAnswer(null);
     setInputAnswer('');
+    setFillBlankAnswers([]);
     setShowResult(false);
     await loadRandomExercise();
   };
@@ -221,9 +259,31 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
       <VictoryCelebration active={showCelebration} type="streak" streakCount={stats.correct} />
       
       <header className="flex items-center justify-between p-4 text-white">
-        <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl">
-          <X className="h-6 w-6" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-xl">
+            <X className="h-6 w-6" />
+          </button>
+          
+          {/* Bouton lecture vocale */}
+          <button
+            onClick={() => setTtsEnabled(!ttsEnabled)}
+            className={`p-2 rounded-xl transition-colors ${
+              ttsEnabled ? 'bg-white/30' : 'bg-white/10'
+            }`}
+            title={ttsEnabled ? 'Désactiver la voix' : 'Activer la voix'}
+          >
+            {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+          </button>
+          
+          {ttsEnabled && (
+            <button
+              onClick={speakQuestion}
+              className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium hover:bg-white/30"
+            >
+              🔊 Relire
+            </button>
+          )}
+        </div>
         
         <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
           <Clock className="h-5 w-5" />
@@ -326,6 +386,43 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
                 </div>
               )}
 
+              {exercise.type === 'fill_blank' && exercise.content.text && (
+                <div className="mb-6">
+                  <div className="text-lg leading-relaxed text-center">
+                    {exercise.content.text.split('___').map((part, index, array) => (
+                      <span key={index}>
+                        {part}
+                        {index < array.length - 1 && (
+                          <input
+                            type="text"
+                            value={fillBlankAnswers[index] || ''}
+                            onChange={(e) => {
+                              const newAnswers = [...fillBlankAnswers];
+                              newAnswers[index] = e.target.value;
+                              setFillBlankAnswers(newAnswers);
+                            }}
+                            disabled={showResult}
+                            className={`mx-1 w-20 rounded-lg border-2 px-2 py-1 text-center font-bold transition-all ${
+                              showResult
+                                ? fillBlankAnswers[index]?.trim().toLowerCase() === exercise.content.blanks?.[index]?.toLowerCase()
+                                  ? 'border-green-500 bg-green-50 text-green-700'
+                                  : 'border-red-500 bg-red-50 text-red-700'
+                                : 'border-indigo-300 focus:border-indigo-500 focus:outline-none'
+                            }`}
+                            placeholder="..."
+                          />
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                  {showResult && !isCorrect && exercise.content.blanks && (
+                    <p className="mt-3 text-center text-gray-600">
+                      Réponses : <strong className="text-green-600">{exercise.content.blanks.join(', ')}</strong>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <AnimatePresence mode="wait">
                 {showResult ? (
                   <motion.div
@@ -368,7 +465,7 @@ export default function QuickSession({ onClose, profileId, profileName }: QuickS
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={checkAnswer}
-                    disabled={selectedAnswer === null && inputAnswer === ''}
+                    disabled={selectedAnswer === null && inputAnswer === '' && fillBlankAnswers.length === 0}
                     className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold disabled:opacity-50"
                   >
                     Vérifier

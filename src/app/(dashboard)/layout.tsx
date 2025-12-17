@@ -18,11 +18,13 @@ import {
   Users,
   FolderPlus,
   Compass,
-  Shield
+  Shield,
+  Gift
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useI18n } from '@/i18n/context';
 import { useAdmin } from '@/lib/hooks/useAdmin';
+import { StudentNotificationCenter } from '@/components/notifications';
 
 const languages = [
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -42,6 +44,7 @@ export default function DashboardLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [profileName, setProfileName] = useState('');
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   const navigation = [
     { name: t('nav.home'), href: '/dashboard', icon: Home },
@@ -58,7 +61,9 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const name = localStorage.getItem('activeProfileName');
+    const id = localStorage.getItem('activeProfileId');
     if (name) setProfileName(name);
+    if (id) setProfileId(id);
   }, []);
 
   const handleLanguageChange = (langCode: string) => {
@@ -111,6 +116,11 @@ export default function DashboardLayout({
 
             {/* Right side */}
             <div className="flex items-center gap-3">
+              {/* Student Notifications */}
+              {profileId && (
+                <StudentNotificationCenter studentId={profileId} />
+              )}
+
               {/* Language selector */}
               <div className="relative">
                 <button

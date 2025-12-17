@@ -12,9 +12,12 @@ import {
   Check,
   Loader2,
   Eye,
-  EyeOff
+  EyeOff,
+  Trash2,
+  Edit3
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { saveUserAISettings, getUserAISettingsForClient, deleteUserApiKey } from '@/server/actions/ai';
 
 type Provider = 'platform' | 'openai' | 'anthropic';
 
@@ -59,6 +62,8 @@ export default function AISettingsPage() {
   const [testing, setTesting] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isEditingKey, setIsEditingKey] = useState(false);
+  const [hasExistingKey, setHasExistingKey] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -73,19 +78,49 @@ export default function AISettingsPage() {
       return;
     }
 
-    const { data } = await supabase
-      .from('user_ai_settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (data) {
+    // Charger depuis Supabase via server action (clé déchiffrée)
+    const serverSettings = await getUserAISettingsForClient();
+    
+    // Charger les clés API depuis localStorage (fallback)
+    const localProvider = localStorage.getItem('ai_provider') as Provider || 'platform';
+    const localModel = localStorage.getItem('ai_model') || '';
+    
+    if (serverSettings && serverSettings.api_key) {
+      // Synchroniser avec localStorage pour TTS
+      if (serverSettings.provider === 'openai') {
+        localStorage.setItem('ai_api_key_openai', serverSettings.api_key);
+        localStorage.setItem('ai_api_key', serverSettings.api_key);
+      } else if (serverSettings.provider === 'anthropic') {
+        localStorage.setItem('ai_api_key_anthropic', serverSettings.api_key);
+      }
+      
       setSettings({
-        provider: data.provider || 'platform',
-        api_key: '',
-        preferred_model: data.preferred_model || '',
-        is_key_valid: data.is_key_valid || false,
+        provider: serverSettings.provider as Provider,
+        api_key: serverSettings.api_key,
+        preferred_model: serverSettings.preferred_model || '',
+        is_key_valid: serverSettings.is_key_valid,
       });
+      setHasExistingKey(true);
+    } else {
+      // Fallback localStorage
+      const getLocalApiKey = (provider: Provider) => {
+        if (provider === 'openai') {
+          return localStorage.getItem('ai_api_key_openai') || localStorage.getItem('ai_api_key') || '';
+        }
+        if (provider === 'anthropic') {
+          return localStorage.getItem('ai_api_key_anthropic') || '';
+        }
+        return '';
+      };
+      
+      const localApiKey = getLocalApiKey(localProvider);
+      setSettings({
+        provider: serverSettings?.provider as Provider || localProvider,
+        api_key: localApiKey,
+        preferred_model: serverSettings?.preferred_model || localModel,
+        is_key_valid: localApiKey.length > 20,
+      });
+      setHasExistingKey(!!localApiKey);
     }
     setLoading(false);
   };
@@ -93,36 +128,42 @@ export default function AISettingsPage() {
   const saveSettings = async () => {
     setSaving(true);
     setMessage(null);
-    
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) return;
 
-    const updateData: Record<string, unknown> = {
-      user_id: user.id,
-      provider: settings.provider,
-      preferred_model: settings.preferred_model,
-      updated_at: new Date().toISOString(),
-    };
-
+    // Sauvegarder dans localStorage (persistance côté client pour TTS)
+    localStorage.setItem('ai_provider', settings.provider);
+    localStorage.setItem('ai_model', settings.preferred_model);
+    
     if (settings.api_key) {
-      updateData.api_key_encrypted = settings.api_key;
-      updateData.is_key_valid = false;
+      if (settings.provider === 'openai') {
+        localStorage.setItem('ai_api_key_openai', settings.api_key);
+        localStorage.setItem('ai_api_key', settings.api_key);
+      } else if (settings.provider === 'anthropic') {
+        localStorage.setItem('ai_api_key_anthropic', settings.api_key);
+      }
     }
 
-    const { error } = await supabase
-      .from('user_ai_settings')
-      .upsert(updateData, { onConflict: 'user_id' });
+    // Sauvegarder via server action (chiffrement côté serveur)
+    const result = await saveUserAISettings(
+      settings.provider,
+      settings.api_key || null,
+      settings.preferred_model
+    );
 
     setSaving(false);
     
-    if (error) {
-      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' });
+    if (!result.success) {
+      setMessage({ type: 'error', text: result.error || 'Erreur lors de la sauvegarde' });
     } else {
       setMessage({ type: 'success', text: 'Paramètres enregistrés' });
-      setTimeout(() => setMessage(null), 3000);
     }
+    
+    // Mettre à jour l'état
+    if (settings.api_key) {
+      setHasExistingKey(true);
+      setIsEditingKey(false);
+    }
+    
+    setTimeout(() => setMessage(null), 3000);
   };
 
   const testApiKey = async () => {
@@ -201,13 +242,24 @@ export default function AISettingsPage() {
             {providers.map(provider => (
               <button
                 key={provider.id}
-                onClick={() => setSettings({ 
-                  ...settings, 
-                  provider: provider.id,
-                  preferred_model: provider.models[0] || '',
-                  api_key: '',
-                  is_key_valid: false
-                })}
+                onClick={() => {
+                  // Charger la clé correspondant au nouveau provider
+                  let apiKey = '';
+                  if (provider.id === 'openai') {
+                    apiKey = localStorage.getItem('ai_api_key_openai') || '';
+                  } else if (provider.id === 'anthropic') {
+                    apiKey = localStorage.getItem('ai_api_key_anthropic') || '';
+                  }
+                  setSettings({ 
+                    ...settings, 
+                    provider: provider.id,
+                    preferred_model: provider.models[0] || '',
+                    api_key: apiKey,
+                    is_key_valid: apiKey.length > 20
+                  });
+                  setHasExistingKey(!!apiKey);
+                  setIsEditingKey(false);
+                }}
                 className={`w-full rounded-lg p-4 text-left transition-all ${
                   settings.provider === provider.id
                     ? 'border-2 border-indigo-600 bg-indigo-50'
@@ -233,38 +285,123 @@ export default function AISettingsPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="relative">
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={settings.api_key}
-                    onChange={(e) => setSettings({ ...settings, api_key: e.target.value, is_key_valid: false })}
-                    placeholder={`Entrez votre clé API ${selectedProvider?.name}`}
-                    className="w-full rounded-lg border px-4 py-3 pr-24 focus:border-indigo-500 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showKey ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                  {settings.is_key_valid && (
-                    <Check className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-green-500" />
-                  )}
-                </div>
+                {/* Affichage clé existante */}
+                {hasExistingKey && !isEditingKey ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-4">
+                      <div className="flex items-center gap-3">
+                        <Check className="h-5 w-5 text-green-600" />
+                        <div>
+                          <p className="font-medium text-green-800">Clé API configurée</p>
+                          <p className="text-sm text-green-600 font-mono">
+                            {showKey ? settings.api_key : `${settings.api_key.substring(0, 7)}${'*'.repeat(20)}${settings.api_key.slice(-4)}`}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowKey(!showKey)}
+                        className="text-green-600 hover:text-green-800"
+                      >
+                        {showKey ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setIsEditingKey(true)}
+                        className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                        Modifier
+                      </button>
+                      <button
+                        onClick={async () => {
+                          // Supprimer de Supabase
+                          const result = await deleteUserApiKey();
+                          if (result.success) {
+                            // Supprimer de localStorage
+                            setSettings({ ...settings, api_key: '', is_key_valid: false });
+                            setHasExistingKey(false);
+                            if (settings.provider === 'openai') {
+                              localStorage.removeItem('ai_api_key_openai');
+                              localStorage.removeItem('ai_api_key');
+                            } else if (settings.provider === 'anthropic') {
+                              localStorage.removeItem('ai_api_key_anthropic');
+                            }
+                            localStorage.removeItem('openai_tts_key');
+                            setMessage({ type: 'success', text: 'Clé API supprimée' });
+                          } else {
+                            setMessage({ type: 'error', text: result.error || 'Erreur lors de la suppression' });
+                          }
+                          setTimeout(() => setMessage(null), 3000);
+                        }}
+                        className="flex items-center gap-2 rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Formulaire de saisie */
+                  <>
+                    <div className="relative">
+                      <input
+                        type={showKey ? 'text' : 'password'}
+                        value={settings.api_key}
+                        onChange={(e) => setSettings({ ...settings, api_key: e.target.value, is_key_valid: false })}
+                        placeholder={`Entrez votre clé API ${selectedProvider?.name}`}
+                        className="w-full rounded-lg border px-4 py-3 pr-24 focus:border-indigo-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKey(!showKey)}
+                        className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showKey ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                      {settings.is_key_valid && (
+                        <Check className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-green-500" />
+                      )}
+                    </div>
 
-                <button
-                  onClick={testApiKey}
-                  disabled={testing || !settings.api_key}
-                  className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
-                >
-                  {testing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Shield className="h-4 w-4" />
-                  )}
-                  Tester la clé
-                </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={testApiKey}
+                        disabled={testing || !settings.api_key}
+                        className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                      >
+                        {testing ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Shield className="h-4 w-4" />
+                        )}
+                        Tester la clé
+                      </button>
+                      {isEditingKey && (
+                        <button
+                          onClick={async () => {
+                            setIsEditingKey(false);
+                            // Recharger la clé depuis Supabase
+                            const serverSettings = await getUserAISettingsForClient();
+                            if (serverSettings?.api_key) {
+                              setSettings({ ...settings, api_key: serverSettings.api_key, is_key_valid: serverSettings.is_key_valid });
+                            } else {
+                              // Fallback localStorage
+                              const localKey = settings.provider === 'openai' 
+                                ? localStorage.getItem('ai_api_key_openai') || ''
+                                : localStorage.getItem('ai_api_key_anthropic') || '';
+                              setSettings({ ...settings, api_key: localKey });
+                            }
+                          }}
+                          className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                        >
+                          Annuler
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

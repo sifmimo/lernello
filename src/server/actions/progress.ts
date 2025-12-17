@@ -143,33 +143,77 @@ export async function getNextSkillExercise(
 export async function getStudentDashboardStats(studentId: string) {
   const supabase = await createClient();
   
-  // Progression globale
-  const { data: progress } = await supabase
-    .from('student_skill_progress')
-    .select('mastery_level, attempts_count, correct_count, current_streak, best_streak')
-    .eq('student_id', studentId);
+  // Récupérer toutes les données en parallèle
+  const [progressResult, xpResult, streakResult, achievementsResult, sessionsResult] = await Promise.all([
+    supabase
+      .from('student_skill_progress')
+      .select('mastery_level, attempts_count, correct_count, current_streak, best_streak, total_time_seconds')
+      .eq('student_id', studentId),
+    supabase
+      .from('student_xp')
+      .select('total_xp, current_level, xp_to_next_level, xp_earned_today')
+      .eq('student_id', studentId)
+      .single(),
+    supabase
+      .from('daily_streaks')
+      .select('current_streak, longest_streak, last_activity_date, streak_freeze_available')
+      .eq('student_id', studentId)
+      .single(),
+    supabase
+      .from('student_achievements')
+      .select('id')
+      .eq('student_id', studentId),
+    supabase
+      .from('learning_sessions')
+      .select('started_at, exercises_completed')
+      .eq('student_id', studentId)
+      .order('started_at', { ascending: false })
+      .limit(7)
+  ]);
 
-  if (!progress || progress.length === 0) {
-    return {
-      totalSkills: 0,
-      masteredSkills: 0,
-      inProgressSkills: 0,
-      averageMastery: 0,
-      totalAttempts: 0,
-      totalCorrect: 0,
-      accuracy: 0,
-      bestStreak: 0,
-    };
-  }
+  const progress = progressResult.data || [];
+  const xp = xpResult.data;
+  const streak = streakResult.data;
+  const achievements = achievementsResult.data || [];
+  const sessions = sessionsResult.data || [];
 
+  // Stats de progression
   const totalSkills = progress.length;
   const masteredSkills = progress.filter((p: { mastery_level: number }) => p.mastery_level >= 80).length;
   const inProgressSkills = progress.filter((p: { mastery_level: number }) => p.mastery_level > 0 && p.mastery_level < 80).length;
   const totalAttempts = progress.reduce((sum: number, p: { attempts_count: number }) => sum + p.attempts_count, 0);
   const totalCorrect = progress.reduce((sum: number, p: { correct_count: number }) => sum + p.correct_count, 0);
-  const averageMastery = Math.round(progress.reduce((sum: number, p: { mastery_level: number }) => sum + p.mastery_level, 0) / totalSkills);
+  const averageMastery = totalSkills > 0 
+    ? Math.round(progress.reduce((sum: number, p: { mastery_level: number }) => sum + p.mastery_level, 0) / totalSkills) 
+    : 0;
   const accuracy = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
-  const bestStreak = Math.max(...progress.map((p: { best_streak: number }) => p.best_streak || 0));
+  const bestStreak = progress.length > 0 
+    ? Math.max(...progress.map((p: { best_streak: number }) => p.best_streak || 0)) 
+    : 0;
+  const totalTimeMinutes = Math.round(
+    progress.reduce((sum: number, p: { total_time_seconds?: number }) => sum + (p.total_time_seconds || 0), 0) / 60
+  );
+
+  // Streak quotidien
+  const dailyStreak = streak?.current_streak || 0;
+  const longestStreak = streak?.longest_streak || 0;
+  const lastActivityDate = streak?.last_activity_date;
+  const streakFreezeAvailable = streak?.streak_freeze_available ?? true;
+
+  // XP
+  const totalXp = xp?.total_xp || 0;
+  const currentLevel = xp?.current_level || 1;
+  const xpToNextLevel = xp?.xp_to_next_level || 100;
+  const xpEarnedToday = xp?.xp_earned_today || 0;
+
+  // Badges
+  const badgesCount = achievements.length;
+
+  // Activité récente
+  const recentActivity = sessions.map((s: { started_at: string; exercises_completed: number }) => ({
+    date: s.started_at,
+    exercisesCompleted: s.exercises_completed || 0
+  }));
 
   return {
     totalSkills,
@@ -180,6 +224,17 @@ export async function getStudentDashboardStats(studentId: string) {
     totalCorrect,
     accuracy,
     bestStreak,
+    totalTimeMinutes,
+    dailyStreak,
+    longestStreak,
+    lastActivityDate,
+    streakFreezeAvailable,
+    totalXp,
+    currentLevel,
+    xpToNextLevel,
+    xpEarnedToday,
+    badgesCount,
+    recentActivity,
   };
 }
 

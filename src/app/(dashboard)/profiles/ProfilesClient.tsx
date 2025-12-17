@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Plus, User, Settings, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { OnboardingFlow } from '@/components/onboarding';
 
 interface StudentProfile {
   id: string;
@@ -12,6 +13,7 @@ interface StudentProfile {
   avatar_url: string | null;
   birth_year: number | null;
   preferred_language: string | null;
+  onboarding_completed: boolean;
 }
 
 export default function ProfilesPage() {
@@ -23,6 +25,8 @@ export default function ProfilesPage() {
   const [selectedProfile, setSelectedProfile] = useState<StudentProfile | null>(null);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingProfile, setOnboardingProfile] = useState<StudentProfile | null>(null);
 
   const [newProfile, setNewProfile] = useState({
     display_name: '',
@@ -50,7 +54,12 @@ export default function ProfilesPage() {
       .order('created_at', { ascending: true });
 
     if (!error && data) {
-      setProfiles(data);
+      // Add onboarding_completed flag based on localStorage (fallback until migration is applied)
+      const profilesWithOnboarding = data.map(p => ({
+        ...p,
+        onboarding_completed: localStorage.getItem(`onboarding_${p.id}`) === 'true'
+      }));
+      setProfiles(profilesWithOnboarding);
     }
     setLoading(false);
   };
@@ -77,10 +86,27 @@ export default function ProfilesPage() {
 
   const selectProfile = (profile: StudentProfile) => {
     setSelectedProfile(profile);
-    // Stocker le profil sélectionné et rediriger vers le dashboard élève
     localStorage.setItem('activeProfileId', profile.id);
     localStorage.setItem('activeProfileName', profile.display_name);
-    router.push('/learn');
+    
+    // Déclencher l'onboarding si pas encore complété
+    if (!profile.onboarding_completed) {
+      setOnboardingProfile(profile);
+      setShowOnboarding(true);
+    } else {
+      router.push('/dashboard');
+    }
+  };
+
+  const handleOnboardingComplete = async () => {
+    if (!onboardingProfile) return;
+    
+    // Save onboarding completion in localStorage (fallback until migration is applied)
+    localStorage.setItem(`onboarding_${onboardingProfile.id}`, 'true');
+    
+    setShowOnboarding(false);
+    setOnboardingProfile(null);
+    router.push('/dashboard');
   };
 
   const handleParentAccess = () => {
@@ -111,6 +137,16 @@ export default function ProfilesPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
       </div>
+    );
+  }
+
+  if (showOnboarding && onboardingProfile) {
+    return (
+      <OnboardingFlow
+        childName={onboardingProfile.display_name}
+        profileId={onboardingProfile.id}
+        onComplete={handleOnboardingComplete}
+      />
     );
   }
 

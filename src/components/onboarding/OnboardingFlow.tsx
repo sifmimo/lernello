@@ -6,9 +6,12 @@ import { ChevronRight, Sparkles } from 'lucide-react';
 import { Lumi } from '@/components/lumi';
 import { playSound } from '@/lib/sounds';
 import { VictoryCelebration } from '@/components/animations';
+import { addXp } from '@/server/actions/xp';
+import { updateDailyStreak } from '@/server/actions/streaks';
 
 interface OnboardingFlowProps {
   childName: string;
+  profileId: string;
   onComplete: () => void;
 }
 
@@ -26,7 +29,7 @@ const avatarOptions = [
   { id: 'artist', emoji: '🎨', label: 'Artiste' },
 ];
 
-export default function OnboardingFlow({ childName, onComplete }: OnboardingFlowProps) {
+export default function OnboardingFlow({ childName, profileId, onComplete }: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingStep>('welcome');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
@@ -44,11 +47,14 @@ export default function OnboardingFlow({ childName, onComplete }: OnboardingFlow
     }
   };
 
-  const handleQuizAnswer = (answer: number) => {
+  const handleQuizAnswer = async (answer: number) => {
     setQuizAnswer(answer);
     if (answer === 2) {
       playSound('correct');
       setXpEarned(prev => prev + 10);
+      // Persister les XP et le streak en base
+      await addXp(profileId, 10, 'onboarding_quiz');
+      await updateDailyStreak(profileId);
       setTimeout(() => {
         setShowCelebration(true);
         setTimeout(() => {
@@ -61,9 +67,11 @@ export default function OnboardingFlow({ childName, onComplete }: OnboardingFlow
     }
   };
 
-  const handleAvatarSelect = (avatarId: string) => {
+  const handleAvatarSelect = async (avatarId: string) => {
     setSelectedAvatar(avatarId);
     setXpEarned(prev => prev + 5);
+    // Persister les XP pour le choix d'avatar
+    await addXp(profileId, 5, 'onboarding_avatar');
     playSound('click');
   };
 

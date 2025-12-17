@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle, Star, Loader2, Wand2, BookOpen } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Lightbulb, Trophy, ArrowRight, Sparkles, Bot, MessageCircle, Star, Loader2, Wand2, BookOpen, Volume2, VolumeX } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getAIHint, getEncouragement } from '@/server/actions/ai';
 import { Lumi } from '@/components/lumi';
@@ -12,6 +12,9 @@ import { VictoryCelebration } from '@/components/animations';
 import { fetchOrGenerateExercise, submitAnswerAndGetNext, rateExercise } from '@/server/actions/content';
 import SkillTheory from '@/components/learning/SkillTheory';
 import { getSkillContent } from '@/server/actions/skill-content';
+import { updateDailyStreak } from '@/server/actions/streaks';
+import { addXp } from '@/server/actions/xp';
+import { tts } from '@/lib/tts';
 
 interface Exercise {
   id: string;
@@ -75,6 +78,7 @@ export default function SkillExercisePage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationType, setCelebrationType] = useState<'correct' | 'streak' | 'levelUp'>('correct');
   const [streakCount, setStreakCount] = useState(0);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -155,6 +159,48 @@ export default function SkillExercisePage() {
 
   const currentExercise = exercises[currentIndex];
 
+  // Lecture vocale de la question quand elle change (après interaction utilisateur)
+  useEffect(() => {
+    let cancelled = false;
+    
+    if (currentExercise && ttsEnabled && !showResult) {
+      tts.stop();
+      const timer = setTimeout(() => {
+        if (!cancelled) {
+          const question = currentExercise.content.question;
+          tts.speakQuestion(question);
+        }
+      }, 400);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+        tts.stop();
+      };
+    }
+    return () => {
+      cancelled = true;
+      tts.stop();
+    };
+  }, [currentExercise?.id, ttsEnabled, showResult]);
+
+  // Lecture vocale du feedback
+  useEffect(() => {
+    if (showResult && ttsEnabled && aiEncouragement) {
+      // Arrêter toute lecture en cours avant le feedback
+      tts.stop();
+      const timer = setTimeout(() => {
+        tts.speakFeedback(aiEncouragement, isCorrect);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showResult, aiEncouragement, isCorrect, ttsEnabled]);
+
+  const speakQuestion = () => {
+    if (currentExercise) {
+      tts.speakQuestion(currentExercise.content.question);
+    }
+  };
+
   const checkAnswer = useCallback(() => {
     if (!currentExercise || showResult) return;
 
@@ -184,6 +230,14 @@ export default function SkillExercisePage() {
       const newStreak = streakCount + 1;
       setStreakCount(newStreak);
       setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
+      
+      // Mettre à jour le streak quotidien et gagner des XP
+      const profileId = localStorage.getItem('activeProfileId');
+      if (profileId) {
+        updateDailyStreak(profileId).catch(console.error);
+        const xpAmount = 10 + (newStreak >= 3 ? 5 : 0); // Bonus XP pour les séries
+        addXp(profileId, xpAmount, 'exercise_correct').catch(console.error);
+      }
       
       // Célébration selon le streak
       if (newStreak >= 5 && newStreak % 5 === 0) {
@@ -451,9 +505,32 @@ export default function SkillExercisePage() {
       
       <header className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <Link href={`/learn/${subject}`} className="rounded-lg p-2 hover:bg-gray-100">
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href={`/learn/${subject}`} className="rounded-lg p-2 hover:bg-gray-100">
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </Link>
+            
+            {/* Bouton lecture vocale */}
+            <button
+              onClick={() => setTtsEnabled(!ttsEnabled)}
+              className={`rounded-lg p-2 transition-colors ${
+                ttsEnabled ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'
+              }`}
+              title={ttsEnabled ? 'Désactiver la lecture vocale' : 'Activer la lecture vocale'}
+            >
+              {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </button>
+            
+            {/* Bouton relire la question */}
+            {ttsEnabled && (
+              <button
+                onClick={speakQuestion}
+                className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+              >
+                🔊 Relire
+              </button>
+            )}
+          </div>
           
           {/* Affichage du niveau avec étoiles */}
           <div className="flex flex-col items-center">

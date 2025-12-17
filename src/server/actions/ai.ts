@@ -36,6 +36,72 @@ async function getUserAISettings(userId: string): Promise<AISettings | null> {
   };
 }
 
+export async function getUserAISettingsForClient(): Promise<{
+  provider: AIProvider;
+  api_key: string;
+  preferred_model: string;
+  is_key_valid: boolean;
+} | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from('user_ai_settings')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!data) return null;
+
+  let apiKey = '';
+  if (data.api_key_encrypted) {
+    try {
+      apiKey = decryptApiKey(data.api_key_encrypted);
+    } catch (error) {
+      console.error('Erreur déchiffrement clé API:', error);
+      // Clé corrompue ou chiffrée avec une autre clé - la supprimer
+      await supabase
+        .from('user_ai_settings')
+        .update({ api_key_encrypted: null, is_key_valid: false })
+        .eq('user_id', user.id);
+    }
+  }
+
+  return {
+    provider: data.provider as AIProvider,
+    api_key: apiKey,
+    preferred_model: data.preferred_model || '',
+    is_key_valid: apiKey ? data.is_key_valid : false,
+  };
+}
+
+export async function deleteUserApiKey(): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return { success: false, error: 'Non authentifié' };
+  }
+
+  const { error } = await supabase
+    .from('user_ai_settings')
+    .update({ 
+      api_key_encrypted: null, 
+      is_key_valid: false,
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error deleting API key:', error);
+    return { success: false, error: 'Erreur lors de la suppression' };
+  }
+
+  return { success: true };
+}
+
 export async function saveUserAISettings(
   provider: AIProvider,
   apiKey: string | null,
@@ -57,16 +123,17 @@ export async function saveUserAISettings(
 
   if (apiKey) {
     let isValid = false;
-    if (provider === 'openai') {
-      isValid = await validateOpenAIKey(apiKey);
-    } else if (provider === 'anthropic') {
-      isValid = await validateAnthropicKey(apiKey);
+    try {
+      if (provider === 'openai') {
+        isValid = await validateOpenAIKey(apiKey);
+      } else if (provider === 'anthropic') {
+        isValid = await validateAnthropicKey(apiKey);
+      }
+    } catch (error) {
+      console.error('Erreur validation clé:', error);
     }
 
-    if (!isValid && provider !== 'platform') {
-      return { success: false, error: 'Clé API invalide' };
-    }
-
+    // Sauvegarder la clé même si non validée (l'utilisateur pourra la tester plus tard)
     updateData.api_key_encrypted = encryptApiKey(apiKey);
     updateData.is_key_valid = isValid;
   }

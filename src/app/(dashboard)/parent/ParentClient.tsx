@@ -17,10 +17,44 @@ import {
   AlertTriangle,
   CheckCircle,
   Lightbulb,
-  ArrowRight
+  ArrowRight,
+  Gamepad2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ProgressChart, DonutChart } from '@/components/charts';
+import { FamilyChallenges } from '@/components/family';
+import { WeeklyReport } from '@/components/reports';
+
+const skillNames: Record<string, string> = {
+  count_to_100: 'Compter jusqu\'à 100',
+  compare_numbers_100: 'Comparer les nombres',
+  count_to_1000: 'Compter jusqu\'à 1000',
+  count_to_10000: 'Compter jusqu\'à 10000',
+  large_numbers: 'Grands nombres',
+  decimals: 'Nombres décimaux',
+  addition_10: 'Additions (0-10)',
+  subtraction_10: 'Soustractions (0-10)',
+  addition_100: 'Additions (0-100)',
+  multiplication_tables: 'Tables de multiplication',
+  multiplication_2digits: 'Multiplication à 2 chiffres',
+  division_2digits: 'Division à 2 chiffres',
+  decimal_operations: 'Opérations décimales',
+  shapes_basic: 'Formes de base',
+  symmetry: 'Symétrie',
+  perimeter: 'Périmètre',
+  area: 'Aire',
+  volume: 'Volume',
+  length_basic: 'Longueurs',
+  time_reading: 'Lecture de l\'heure',
+  mass_capacity: 'Masses et contenances',
+  conversions: 'Conversions',
+  duration_calc: 'Calcul de durées',
+  problems_simple: 'Problèmes simples',
+  problems_2steps: 'Problèmes à 2 étapes',
+  problems_multi: 'Problèmes multi-étapes',
+  problems_complex: 'Problèmes complexes',
+  problems_advanced: 'Problèmes avancés',
+};
 
 interface StudentProfile {
   id: string;
@@ -176,7 +210,7 @@ export default function ParentDashboardPage() {
 
         return {
           id: p.skill_id,
-          name: skill ? (translations[skill.name_key] || skill.code) : 'Compétence',
+          name: skill ? (skillNames[skill.code] || translations[skill.name_key] || skill.code) : 'Compétence',
           masteryLevel,
           attemptsCount,
           correctCount,
@@ -519,6 +553,27 @@ export default function ParentDashboardPage() {
                   + {stats.skillsProgress.filter(s => s.status === 'mastered').length - 9} autres compétences maîtrisées
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Défis Famille - Vision V3 */}
+          {selectedProfile && (
+            <div className="mt-6">
+              <FamilyChallenges
+                parentUserId={profiles[0]?.id || ''}
+                studentId={selectedProfile}
+                studentName={selectedProfileData.display_name}
+              />
+            </div>
+          )}
+
+          {/* Rapport Hebdomadaire - Vision V3 */}
+          {selectedProfile && (
+            <div className="mt-6">
+              <WeeklyReport
+                studentId={selectedProfile}
+                studentName={selectedProfileData.display_name}
+              />
             </div>
           )}
 
