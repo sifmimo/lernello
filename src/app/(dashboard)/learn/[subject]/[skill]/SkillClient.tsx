@@ -19,6 +19,7 @@ import { SkillLearningFlow } from '@/components/skill-presentation';
 import { getSkillPresentations } from '@/server/actions/skill-presentations';
 import { SkillPresentation } from '@/types/skill-presentation';
 import { ExerciseRenderer } from '@/components/exercises';
+import { MicroLessonFlow } from '@/components/micro-lesson';
 
 interface Exercise {
   id: string;
@@ -76,6 +77,12 @@ export default function SkillExercisePage() {
   const [skillPresentation, setSkillPresentation] = useState<SkillPresentation | null>(null);
   const [showPresentation, setShowPresentation] = useState(false);
   const [presentationChecked, setPresentationChecked] = useState(false);
+  const [showMicroLesson, setShowMicroLesson] = useState(false);
+  const [domainName, setDomainName] = useState('');
+  const [subjectName, setSubjectName] = useState('');
+  const [skillDescription, setSkillDescription] = useState('');
+  const [studentAge, setStudentAge] = useState(9);
+  const [studentInterests, setStudentInterests] = useState<string[]>([]);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -122,6 +129,51 @@ export default function SkillExercisePage() {
 
       setSkillId(skillData.id);
       setSkillName(skillData.display_name || skillData.name_key || skillCode);
+      setSkillDescription(skillData.description_key || '');
+
+      // Charger les infos du domaine et de la matière pour les micro-leçons V7
+      try {
+        const { data: domainData } = await supabase
+          .from('domains')
+          .select('name_key')
+          .eq('id', skillData.domain_id)
+          .single();
+        
+        if (domainData) {
+          setDomainName(domainData.name_key || '');
+        }
+      } catch (e) {
+        console.log('Domain data not available');
+      }
+
+      try {
+        const { data: subjectInfo } = await supabase
+          .from('subjects')
+          .select('name')
+          .eq('code', subject)
+          .single();
+        
+        if (subjectInfo) {
+          setSubjectName(subjectInfo.name || subject);
+        }
+      } catch (e) {
+        setSubjectName(subject);
+      }
+
+      // Charger le profil étudiant pour les micro-leçons V7
+      try {
+        const { data: studentData } = await supabase
+          .from('students')
+          .select('age')
+          .eq('id', profileId)
+          .single();
+        
+        if (studentData?.age) {
+          setStudentAge(Math.max(6, Math.min(12, studentData.age)));
+        }
+      } catch (e) {
+        console.log('Student age not available, using default');
+      }
 
       // Charger la progression actuelle
       const { data: progressData } = await supabase
@@ -139,14 +191,17 @@ export default function SkillExercisePage() {
       const theoryContent = await getSkillContent(skillData.id);
       setHasTheoryContent(!!theoryContent?.content);
 
-      // Charger la présentation V4 si disponible
+      // V7: Afficher les micro-leçons pour les nouveaux utilisateurs ou niveau bas
+      const shouldShowMicroLesson = !progressData?.[0] || (progressData[0].skill_level || 1) <= 2;
+      setShowMicroLesson(shouldShowMicroLesson);
+
+      // Charger la présentation V4 comme fallback si disponible
       const presentations = await getSkillPresentations(skillData.id);
       if (presentations.length > 0) {
         const defaultPresentation = presentations.find(p => p.is_default) || presentations[0];
         setSkillPresentation(defaultPresentation);
-        // Afficher la présentation uniquement si c'est la première visite ou niveau bas
-        const shouldShowPresentation = !progressData?.[0] || (progressData[0].skill_level || 1) <= 2;
-        setShowPresentation(shouldShowPresentation);
+        // Ne pas afficher l'ancienne présentation si on a les micro-leçons V7
+        setShowPresentation(false);
       }
       setPresentationChecked(true);
 
@@ -577,8 +632,32 @@ export default function SkillExercisePage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-6">
-        {/* V4 Skill Presentation */}
-        {showPresentation && skillPresentation && skillId && (
+        {/* V7 Micro-Lesson Flow */}
+        {showMicroLesson && skillId && (
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden">
+            <MicroLessonFlow
+              skillId={skillId}
+              skillName={skillName}
+              skillDescription={skillDescription}
+              domainName={domainName}
+              subjectName={subjectName}
+              subjectCode={subject}
+              difficulty={currentSkillLevel}
+              studentAge={studentAge}
+              studentInterests={studentInterests}
+              onComplete={(score) => {
+                setShowMicroLesson(false);
+                if (score >= 70) {
+                  playSound('complete');
+                }
+              }}
+              onSkip={() => setShowMicroLesson(false)}
+            />
+          </div>
+        )}
+
+        {/* V4 Skill Presentation (fallback) */}
+        {!showMicroLesson && showPresentation && skillPresentation && skillId && (
           <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden">
             <SkillLearningFlow
               skillId={skillId}
@@ -591,7 +670,7 @@ export default function SkillExercisePage() {
         )}
 
         {/* Exercises Section */}
-        {!showPresentation && (
+        {!showMicroLesson && !showPresentation && (
           <div className="space-y-6">
             {/* Carte d'exercice principale */}
             <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden">
@@ -639,16 +718,27 @@ export default function SkillExercisePage() {
 
               {/* Contenu de l'exercice */}
               <div className="p-6">
-                {/* Bouton théorie discret */}
-                {skillId && hasTheoryContent && (
-                  <button
-                    onClick={() => setShowTheory(!showTheory)}
-                    className="mb-4 text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                  >
-                    <BookOpen className="h-3 w-3" />
-                    {showTheory ? 'Masquer la théorie' : 'Revoir la théorie'}
-                  </button>
-                )}
+                {/* Boutons d'accès rapide */}
+                <div className="flex items-center gap-3 mb-4">
+                  {skillId && (
+                    <button
+                      onClick={() => setShowMicroLesson(true)}
+                      className="text-xs text-emerald-600 hover:text-emerald-800 flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Micro-leçon V7
+                    </button>
+                  )}
+                  {skillId && hasTheoryContent && (
+                    <button
+                      onClick={() => setShowTheory(!showTheory)}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                    >
+                      <BookOpen className="h-3 w-3" />
+                      {showTheory ? 'Masquer la théorie' : 'Revoir la théorie'}
+                    </button>
+                  )}
+                </div>
 
                 {showTheory && skillId && (
                   <div className="mb-6 p-4 bg-indigo-50 rounded-2xl">
