@@ -246,7 +246,7 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
   const supabase = await createClient();
   const startTime = Date.now();
   
-  // Déterminer le type d'exercice si non spécifié
+  // Déterminer le type d'exercice si non spécifié - varier les types
   const exerciseTypes: ExerciseType[] = ['qcm', 'fill_blank', 'drag_drop', 'free_input'];
   const selectedType = config.exerciseType || exerciseTypes[Math.floor(Math.random() * exerciseTypes.length)];
   
@@ -254,24 +254,42 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
   const modelConfig = await getModelForTask('exercise_generation', config.skillId);
   console.log('[generateExerciseWithAI] Model config:', modelConfig);
   
+  // Récupérer les exercices existants pour éviter les doublons
+  const { data: existingExercises } = await supabase
+    .from('exercises')
+    .select('content')
+    .eq('skill_id', config.skillId)
+    .limit(5);
+  
+  const existingQuestions = existingExercises?.map(e => {
+    const content = e.content as Record<string, unknown>;
+    return content.question || content.text || '';
+  }).filter(q => q).join('\n- ') || '';
+  
+  const avoidDuplicatesPrompt = existingQuestions 
+    ? `\n\nIMPORTANT: Génère un exercice DIFFÉRENT des exercices existants. Questions à éviter:\n- ${existingQuestions}`
+    : '';
+  
   // Construire le prompt
-  const systemPrompt = `Tu es un expert en pédagogie pour enfants. Tu génères des exercices éducatifs de haute qualité.
+  const systemPrompt = `Tu es un expert en pédagogie pour enfants. Tu génères des exercices éducatifs de haute qualité et VARIÉS.
 
 RÈGLES STRICTES:
 1. Réponds UNIQUEMENT avec du JSON valide, sans texte avant ou après
 2. Le contenu doit être en ${config.language === 'fr' ? 'français' : config.language === 'ar' ? 'arabe' : 'anglais'}
 3. Adapte la difficulté au niveau ${config.difficulty}/5
 4. L'exercice doit être approprié pour un enfant de ${config.targetAge} ans
+5. VARIE les questions et contextes - ne répète jamais la même question
 
 ${getPedagogicalStylePrompt(config.pedagogicalMethod, config.targetAge)}
 
 ${getExerciseTypePrompt(selectedType)}`;
 
-  const userPrompt = `Génère un exercice pour la compétence suivante:
+  const userPrompt = `Génère un exercice UNIQUE et ORIGINAL pour la compétence suivante:
 - Compétence: ${config.skillName}
 - Description: ${config.skillDescription}
 - Difficulté: ${config.difficulty}/5
 - Âge cible: ${config.targetAge} ans
+${avoidDuplicatesPrompt}
 
 Génère UNIQUEMENT le JSON, rien d'autre.`;
 
@@ -447,15 +465,17 @@ export async function getOrCreateExercise(
     limitReached: !canGenerateWithPlatformTokens,
   };
 
-  // Vision V2: Si pas assez d'exercices disponibles (< 3 non tentés récemment), 
-  // générer un nouveau exercice avec l'IA
+  // Vision V2: Générer un nouvel exercice si:
+  // - Moins de 3 exercices disponibles non tentés récemment
+  // - OU si tous les exercices ont été tentés récemment (pour varier)
   const MIN_AVAILABLE_EXERCISES = 3;
-  const shouldGenerateNew = availableExercises.length < MIN_AVAILABLE_EXERCISES;
+  const allExercisesDoneRecently = totalExercises > 0 && availableExercises.length === 0;
+  const shouldGenerateNew = availableExercises.length < MIN_AVAILABLE_EXERCISES || allExercisesDoneRecently;
+
+  console.log(`[getOrCreateExercise] availableExercises: ${availableExercises.length}, totalExercises: ${totalExercises}, shouldGenerateNew: ${shouldGenerateNew}, canGenerate: ${canGenerateWithPlatformTokens}`);
 
   if (shouldGenerateNew && canGenerateWithPlatformTokens) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises}/${MAX_EXERCISES_PER_SKILL} total`);
-    }
+    console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises}/${MAX_EXERCISES_PER_SKILL} total`);
     
     // Tenter de générer un nouvel exercice avec l'IA
     try {
