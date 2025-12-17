@@ -55,13 +55,17 @@ export default function VictoryCelebration({
       setParticles(createParticles());
       setShowContent(true);
       
+      const duration = type === 'levelUp' || type === 'achievement' ? 4000 : 2500;
       const timer = setTimeout(() => {
         setParticles([]);
         setShowContent(false);
         onComplete?.();
-      }, type === 'levelUp' || type === 'achievement' ? 4000 : 2500);
+      }, duration);
 
       return () => clearTimeout(timer);
+    } else {
+      setParticles([]);
+      setShowContent(false);
     }
   }, [active, type, createParticles, onComplete]);
 

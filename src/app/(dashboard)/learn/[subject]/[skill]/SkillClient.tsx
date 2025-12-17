@@ -571,6 +571,7 @@ export default function SkillExercisePage() {
         type={celebrationType} 
         streakCount={streakCount}
         xpGained={isCorrect ? 10 : 0}
+        onComplete={() => setShowCelebration(false)}
       />
       
       {/* Header moderne style Duolingo */}
