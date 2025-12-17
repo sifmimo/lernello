@@ -7,7 +7,10 @@ import {
   Sparkles,
   Users,
   BarChart3,
-  ArrowLeft
+  ArrowLeft,
+  Flag,
+  FlaskConical,
+  Bell
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -67,6 +70,27 @@ export default function AdminPage() {
       icon: BarChart3,
       href: '/admin/stats',
       color: 'bg-gray-500',
+    },
+    {
+      title: 'Feature Flags',
+      description: 'Activer/désactiver des fonctionnalités',
+      icon: Flag,
+      href: '/admin/feature-flags',
+      color: 'bg-cyan-500',
+    },
+    {
+      title: 'A/B Testing',
+      description: 'Expérimentations et tests de variations',
+      icon: FlaskConical,
+      href: '/admin/ab-testing',
+      color: 'bg-pink-500',
+    },
+    {
+      title: 'Notifications',
+      description: 'Gérer les notifications parents',
+      icon: Bell,
+      href: '/admin/notifications',
+      color: 'bg-amber-500',
     },
   ];
 
