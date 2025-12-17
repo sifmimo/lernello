@@ -15,6 +15,9 @@ import { getSkillContent } from '@/server/actions/skill-content';
 import { updateDailyStreak } from '@/server/actions/streaks';
 import { addXp } from '@/server/actions/xp';
 import { tts } from '@/lib/tts';
+import { SkillLearningFlow } from '@/components/skill-presentation';
+import { getSkillPresentations } from '@/server/actions/skill-presentations';
+import { SkillPresentation } from '@/types/skill-presentation';
 
 interface Exercise {
   id: string;
@@ -79,6 +82,9 @@ export default function SkillExercisePage() {
   const [celebrationType, setCelebrationType] = useState<'correct' | 'streak' | 'levelUp'>('correct');
   const [streakCount, setStreakCount] = useState(0);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [skillPresentation, setSkillPresentation] = useState<SkillPresentation | null>(null);
+  const [showPresentation, setShowPresentation] = useState(false);
+  const [presentationChecked, setPresentationChecked] = useState(false);
 
   useEffect(() => {
     const profileId = localStorage.getItem('activeProfileId');
@@ -141,6 +147,17 @@ export default function SkillExercisePage() {
 
       const theoryContent = await getSkillContent(skillData.id);
       setHasTheoryContent(!!theoryContent?.content);
+
+      // Charger la présentation V4 si disponible
+      const presentations = await getSkillPresentations(skillData.id);
+      if (presentations.length > 0) {
+        const defaultPresentation = presentations.find(p => p.is_default) || presentations[0];
+        setSkillPresentation(defaultPresentation);
+        // Afficher la présentation uniquement si c'est la première visite ou niveau bas
+        const shouldShowPresentation = !progressData?.[0] || (progressData[0].skill_level || 1) <= 2;
+        setShowPresentation(shouldShowPresentation);
+      }
+      setPresentationChecked(true);
 
       // Utiliser le système auto-alimenté
       const result = await fetchOrGenerateExercise(skillData.id, profileId);
@@ -565,6 +582,20 @@ export default function SkillExercisePage() {
 
       <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="rounded-2xl bg-white p-8 shadow-xl">
+          {/* V4 Skill Presentation */}
+          {showPresentation && skillPresentation && skillId && (
+            <SkillLearningFlow
+              skillId={skillId}
+              skillName={skillName}
+              presentation={skillPresentation}
+              onStartExercises={() => setShowPresentation(false)}
+              onPresentationComplete={() => {}}
+            />
+          )}
+
+          {/* Exercises Section - shown when presentation is not displayed */}
+          {!showPresentation && (
+            <>
           {/* Theory toggle button */}
           {skillId && (
             <div className="mb-4 flex justify-center">
@@ -887,6 +918,8 @@ export default function SkillExercisePage() {
               </button>
             )}
           </div>
+            </>
+          )}
         </div>
       </main>
     </div>
