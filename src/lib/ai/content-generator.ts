@@ -348,48 +348,21 @@ export async function getOrCreateExercise(
 ): Promise<{ exercise: GeneratedExercise & { id: string }; isNew: boolean; quotaInfo?: ExerciseQuotaInfo } | null> {
   const supabase = await createClient();
 
-  console.log('[getOrCreateExercise] Starting for skill:', skillId, 'student:', studentId);
+  console.log('[V8] getOrCreateExercise - skill:', skillId, 'student:', studentId);
 
-  // Récupérer les infos de la compétence
-  const { data: skill, error: skillError } = await supabase
+  // 1. Récupérer les infos de la compétence
+  const { data: skill } = await supabase
     .from('skills')
     .select('id, code, name_key, description_key, difficulty_level')
     .eq('id', skillId)
     .single();
 
-  console.log('[getOrCreateExercise] Skill data:', skill, 'error:', skillError);
-
   if (!skill) {
-    console.error('[getOrCreateExercise] Skill not found for id:', skillId);
+    console.error('[V8] Skill not found:', skillId);
     return null;
   }
 
-  // Récupérer le niveau de l'élève pour cette compétence (table existante)
-  const { data: progressData } = await supabase
-    .from('student_skill_progress')
-    .select('mastery_level, attempts_count, correct_count')
-    .eq('student_id', studentId)
-    .eq('skill_id', skillId)
-    .single();
-
-  // Vision V2 Section 12.2: Parcours adaptatif avec alternance consolidation/défi
-  const correctRate = progressData ? (progressData.correct_count / Math.max(1, progressData.attempts_count)) : 0.5;
-  const attemptsCount = progressData?.attempts_count || 0;
-  
-  // Alternance consolidation (70%) / défi (30%) pour éviter la sur-adaptation
-  const isConsolidationPhase = Math.random() < 0.7;
-  let recommendedDifficulty: number;
-  
-  if (isConsolidationPhase) {
-    // Consolidation: difficulté adaptée au niveau actuel
-    recommendedDifficulty = Math.min(5, Math.max(1, Math.round(correctRate * 5)));
-  } else {
-    // Défi: difficulté légèrement supérieure pour pousser l'apprenant
-    const baseDifficulty = Math.round(correctRate * 5);
-    recommendedDifficulty = Math.min(5, Math.max(1, baseDifficulty + 1));
-  }
-
-  // Récupérer le profil de l'élève pour l'âge
+  // 2. Récupérer le profil de l'élève
   const { data: studentProfile } = await supabase
     .from('student_profiles')
     .select('birth_year')
@@ -401,33 +374,18 @@ export async function getOrCreateExercise(
     ? Math.max(6, Math.min(12, currentYear - studentProfile.birth_year))
     : 8;
 
-  // Chercher TOUS les exercices validés pour cette compétence
+  // 3. Récupérer TOUS les exercices validés pour cette compétence
   const { data: allExercises } = await supabase
     .from('exercises')
     .select('id, type, content, difficulty')
     .eq('skill_id', skillId)
     .eq('is_validated', true)
-    .order('difficulty', { ascending: true });
+    .order('created_at', { ascending: true });
 
-  // Récupérer les exercices récemment faits par l'élève (dernières 24h pour éviter répétition immédiate)
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: recentAttempts } = await supabase
-    .from('exercise_attempts')
-    .select('exercise_id')
-    .eq('student_id', studentId)
-    .gte('created_at', oneDayAgo);
-
-  const recentIds = new Set(recentAttempts?.map(a => a.exercise_id) || []);
-
-  // Filtrer les exercices non récemment tentés
-  const availableExercises = allExercises?.filter(e => !recentIds.has(e.id)) || [];
   const totalExercises = allExercises?.length || 0;
-
-  // Vision V2 Section 11: Limite de 10 exercices par compétence via tokens plateforme
   const MAX_EXERCISES_PER_SKILL = 10;
   const canGenerateWithPlatformTokens = totalExercises < MAX_EXERCISES_PER_SKILL;
-  
-  // Préparer les informations de quota pour l'affichage utilisateur
+
   const quotaInfo: ExerciseQuotaInfo = {
     totalExercises,
     maxExercises: MAX_EXERCISES_PER_SKILL,
@@ -435,30 +393,49 @@ export async function getOrCreateExercise(
     limitReached: !canGenerateWithPlatformTokens,
   };
 
-  // Vision V2 Section 11: Toujours générer un nouvel exercice tant que le quota de 10 n'est pas atteint
-  // Cela garantit la variété maximale des exercices (jusqu'à 10 différents)
-  const shouldGenerateNew = canGenerateWithPlatformTokens;
+  // 4. V8 ROTATION GARANTIE: Récupérer les exercices vus dans la rotation actuelle
+  // On utilise exercise_attempts pour tracker ce qui a été vu
+  const { data: attemptedExercises } = await supabase
+    .from('exercise_attempts')
+    .select('exercise_id, created_at')
+    .eq('student_id', studentId)
+    .in('exercise_id', allExercises?.map(e => e.id) || [])
+    .order('created_at', { ascending: false });
 
-  console.log(`[getOrCreateExercise] availableExercises: ${availableExercises.length}, totalExercises: ${totalExercises}, shouldGenerateNew: ${shouldGenerateNew}, canGenerate: ${canGenerateWithPlatformTokens}`);
+  // Compter combien de fois chaque exercice a été tenté
+  const attemptCounts = new Map<string, number>();
+  attemptedExercises?.forEach(a => {
+    attemptCounts.set(a.exercise_id, (attemptCounts.get(a.exercise_id) || 0) + 1);
+  });
 
-  if (shouldGenerateNew) {
-    console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises}/${MAX_EXERCISES_PER_SKILL} total`);
+  // Trouver le nombre minimum de tentatives (= rotation actuelle)
+  const minAttempts = allExercises && allExercises.length > 0
+    ? Math.min(...allExercises.map(e => attemptCounts.get(e.id) || 0))
+    : 0;
+
+  // V8: Exercices non vus dans la rotation actuelle = ceux avec le minimum de tentatives
+  const unseenInRotation = allExercises?.filter(e => 
+    (attemptCounts.get(e.id) || 0) === minAttempts
+  ) || [];
+
+  console.log(`[V8] Rotation: total=${totalExercises}, minAttempts=${minAttempts}, unseenInRotation=${unseenInRotation.length}`);
+
+  // 5. V8: Si tous les exercices ont été vus ET quota non atteint, générer un nouveau
+  if (unseenInRotation.length === 0 && canGenerateWithPlatformTokens) {
+    console.log('[V8] Tous vus, génération IA...');
     
-    // Tenter de générer un nouvel exercice avec l'IA
     try {
       const generatedExercise = await generateExerciseWithAI({
         skillId: skill.id,
         skillName: skill.name_key,
         skillDescription: skill.description_key || '',
-        difficulty: recommendedDifficulty,
+        difficulty: Math.min(5, Math.max(1, minAttempts + 1)),
         language,
         pedagogicalMethod,
         targetAge,
       });
 
       if (generatedExercise) {
-        
-        // Sauvegarder l'exercice généré en base
         const { data: savedExercise, error } = await supabase
           .from('exercises')
           .insert({
@@ -472,11 +449,8 @@ export async function getOrCreateExercise(
           .select('id, type, content, difficulty')
           .single();
 
-        if (error) {
-          if (process.env.NODE_ENV === 'development') console.error(`[AI] Erreur sauvegarde exercice:`, error);
-        }
-
         if (!error && savedExercise) {
+          console.log('[V8] Nouvel exercice généré:', savedExercise.id);
           return {
             exercise: savedExercise as GeneratedExercise & { id: string },
             isNew: true,
@@ -485,94 +459,84 @@ export async function getOrCreateExercise(
         }
       }
     } catch (aiError) {
-      console.error('[AI] Erreur génération exercice:', aiError);
+      console.error('[V8] Erreur génération:', aiError);
     }
+    
+    // Si génération échoue, réinitialiser la rotation (tous redeviennent disponibles)
+    console.log('[V8] Génération échouée, réinitialisation rotation');
   }
 
-  // Prioriser les exercices par difficulté adaptée
-  const prioritizedExercises = availableExercises.sort((a, b) => {
-    const diffA = Math.abs(a.difficulty - recommendedDifficulty);
-    const diffB = Math.abs(b.difficulty - recommendedDifficulty);
-    if (diffA !== diffB) return diffA - diffB;
-    return Math.random() - 0.5; // Randomiser si même priorité
-  });
+  // 6. Sélectionner parmi les exercices non vus dans cette rotation
+  const candidates = unseenInRotation.length > 0 ? unseenInRotation : (allExercises || []);
+  
+  if (candidates.length === 0) {
+    // Aucun exercice, tenter génération
+    console.log('[V8] Aucun exercice, génération initiale...');
+    try {
+      const generatedExercise = await generateExerciseWithAI({
+        skillId: skill.id,
+        skillName: skill.name_key,
+        skillDescription: skill.description_key || '',
+        difficulty: 1,
+        language,
+        pedagogicalMethod,
+        targetAge,
+      });
 
-  if (prioritizedExercises.length > 0) {
-    // Prendre un exercice parmi les 3 meilleurs candidats pour varier
-    const topCandidates = prioritizedExercises.slice(0, Math.min(3, prioritizedExercises.length));
-    const randomExercise = topCandidates[Math.floor(Math.random() * topCandidates.length)];
-    return {
-      exercise: randomExercise as GeneratedExercise & { id: string },
-      isNew: false,
-      quotaInfo,
-    };
-  }
+      if (generatedExercise) {
+        const { data: savedExercise, error } = await supabase
+          .from('exercises')
+          .insert({
+            skill_id: skillId,
+            type: generatedExercise.type,
+            content: generatedExercise.content,
+            difficulty: generatedExercise.difficulty,
+            is_ai_generated: true,
+            is_validated: true,
+          })
+          .select('id, type, content, difficulty')
+          .single();
 
-  // Fallback: Si tous les exercices ont été faits récemment et génération échouée
-  if (allExercises && allExercises.length > 0) {
-    const randomExercise = allExercises[Math.floor(Math.random() * allExercises.length)];
-    return {
-      exercise: randomExercise as GeneratedExercise & { id: string },
-      isNew: false,
-      quotaInfo,
-    };
-  }
-
-  // Aucun exercice en base, tenter de générer avec l'IA
-  console.log('[getOrCreateExercise] No exercises in DB, generating with AI for skill:', skill.name_key);
-  try {
-    const generatedExercise = await generateExerciseWithAI({
-      skillId: skill.id,
-      skillName: skill.name_key,
-      skillDescription: skill.description_key || '',
-      difficulty: recommendedDifficulty,
-      language,
-      pedagogicalMethod,
-      targetAge,
-    });
-
-    console.log('[getOrCreateExercise] AI generation result:', generatedExercise ? 'success' : 'null');
-
-    if (!generatedExercise) {
-      console.error('[getOrCreateExercise] AI generation returned null');
-      return null;
+        if (!error && savedExercise) {
+          return {
+            exercise: savedExercise as GeneratedExercise & { id: string },
+            isNew: true,
+            quotaInfo: { ...quotaInfo, totalExercises: 1 },
+          };
+        }
+      }
+    } catch (e) {
+      console.error('[V8] Erreur génération initiale:', e);
     }
-
-    // Tenter de sauvegarder l'exercice généré en base
-    const { data: savedExercise, error } = await supabase
-      .from('exercises')
-      .insert({
-        skill_id: skillId,
-        type: generatedExercise.type,
-        content: generatedExercise.content,
-        difficulty: generatedExercise.difficulty,
-        is_ai_generated: true,
-        is_validated: true,
-      })
-      .select('id, type, content, difficulty')
-      .single();
-
-    if (error) {
-      console.error('Error saving generated exercise (RLS?):', error);
-      return {
-        exercise: {
-          id: `temp-${Date.now()}`,
-          ...generatedExercise,
-        } as GeneratedExercise & { id: string },
-        isNew: true,
-        quotaInfo: { ...quotaInfo, totalExercises: 1 },
-      };
-    }
-
-    return {
-      exercise: savedExercise as GeneratedExercise & { id: string },
-      isNew: true,
-      quotaInfo: { ...quotaInfo, totalExercises: 1 },
-    };
-  } catch (error) {
-    console.error('Error generating exercise:', error);
     return null;
   }
+
+  // 7. V8 INTERLEAVING: Récupérer le dernier type d'exercice fait
+  const lastAttempt = attemptedExercises?.[0];
+  const lastExercise = lastAttempt 
+    ? allExercises?.find(e => e.id === lastAttempt.exercise_id)
+    : null;
+  const lastType = lastExercise?.type;
+
+  // Filtrer pour éviter le même type consécutif (si possible)
+  let finalCandidates = candidates;
+  if (lastType && candidates.length > 1) {
+    const differentType = candidates.filter(e => e.type !== lastType);
+    if (differentType.length > 0) {
+      finalCandidates = differentType;
+    }
+  }
+
+  // 8. Sélection aléatoire parmi les candidats finaux
+  const selectedExercise = finalCandidates[Math.floor(Math.random() * finalCandidates.length)];
+  
+  console.log(`[V8] Sélectionné: ${selectedExercise.id} (type: ${selectedExercise.type})`);
+  
+  return {
+    exercise: selectedExercise as GeneratedExercise & { id: string },
+    isNew: false,
+    quotaInfo,
+  };
 }
 
 export async function evaluateAndGetNextExercise(
