@@ -28,7 +28,10 @@ export type BlockType =
   | 'debug'
   // Arts
   | 'technique'
-  | 'creation';
+  | 'creation'
+  // Audio V6
+  | 'audio'
+  | 'narration';
 
 export type BlockFormat = 
   | 'text'

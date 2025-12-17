@@ -24,3 +24,8 @@ export { TechniqueBlock } from './TechniqueBlock';
 
 // Blocs spécifiques Histoire
 export { ContextBlock } from './ContextBlock';
+
+// Blocs audio V6
+export { AudioBlock } from './AudioBlock';
+export { NarrationBlock } from './NarrationBlock';
+export { TTSButton } from './TTSButton';

@@ -14,6 +14,11 @@ import {
   TypeAnswerExercise,
   SpotTheDifferenceExercise,
 } from './templates';
+import { MathManipulationExercise } from './MathManipulationExercise';
+import { DictationExercise } from './DictationExercise';
+import { TimelineExercise } from './TimelineExercise';
+import { AudioRecognitionExercise } from './AudioRecognitionExercise';
+import { MatchingExercise as MatchingExerciseV6 } from './MatchingExercise';
 
 export type ExerciseTemplateType = 
   | 'qcm_universal'
@@ -31,7 +36,15 @@ export type ExerciseTemplateType =
   | 'mental_math'
   | 'dictation'
   | 'listen_choose'
-  | 'spot_difference';
+  | 'spot_difference'
+  // V6 Types
+  | 'math_manipulation'
+  | 'timeline_ordering'
+  | 'audio_recognition'
+  | 'source_analysis'
+  | 'block_programming'
+  | 'dictation_v6'
+  | 'matching_v6';
 
 interface ExerciseTemplateRendererProps {
   templateCode: ExerciseTemplateType;
@@ -224,6 +237,88 @@ export function ExerciseTemplateRenderer({
           onAnswer={(isCorrect, found) => onAnswer(isCorrect, found)}
           disabled={disabled}
         />
+      );
+
+    // V6: Manipulation mathématique
+    case 'math_manipulation':
+      return (
+        <MathManipulationExercise
+          content={content as {
+            manipulation_type: 'number_line' | 'fraction_visual' | 'balance' | 'place_value' | 'base_blocks';
+            config: Record<string, unknown>;
+            target: Record<string, unknown>;
+            instruction: string;
+            hints?: string[];
+          }}
+          onAnswer={(isCorrect, answer) => onAnswer(isCorrect, answer)}
+          showHint={true}
+        />
+      );
+
+    // V6: Dictée interactive
+    case 'dictation_v6':
+      return (
+        <DictationExercise
+          content={content as {
+            audio_url?: string;
+            text: string;
+            focus_rules?: string[];
+            difficulty_words?: string[];
+            max_replays?: number;
+          }}
+          onAnswer={(isCorrect, answer, errors) => onAnswer(isCorrect, answer, { errors })}
+        />
+      );
+
+    // V6: Frise chronologique
+    case 'timeline_ordering':
+      return (
+        <TimelineExercise
+          content={content as {
+            events: { id: string; title: string; date: string; description?: string; image_url?: string }[];
+            time_range: { start: string; end: string };
+            show_dates?: boolean;
+          }}
+          onAnswer={(isCorrect, order) => onAnswer(isCorrect, order)}
+        />
+      );
+
+    // V6: Reconnaissance audio
+    case 'audio_recognition':
+      return (
+        <AudioRecognitionExercise
+          content={content as {
+            audio_url?: string;
+            question: string;
+            options: string[];
+            correct_answer: number;
+            replay_limit?: number;
+          }}
+          onAnswer={(isCorrect, answer) => onAnswer(isCorrect, answer)}
+        />
+      );
+
+    // V6: Association améliorée
+    case 'matching_v6':
+      return (
+        <MatchingExerciseV6
+          content={content as {
+            pairs: { left: string; right: string; left_type?: 'text' | 'image' | 'audio'; right_type?: 'text' | 'image' | 'audio' }[];
+            instruction?: string;
+          }}
+          onAnswer={(isCorrect, matches) => onAnswer(isCorrect, matches)}
+        />
+      );
+
+    // V6: Analyse de source (placeholder)
+    case 'source_analysis':
+    case 'block_programming':
+      return (
+        <div className="p-6 bg-amber-50 rounded-xl text-center">
+          <p className="text-amber-700">
+            Ce type d'exercice sera bientôt disponible: <code>{templateCode}</code>
+          </p>
+        </div>
       );
 
     default:

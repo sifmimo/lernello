@@ -18,6 +18,8 @@ import {
   DemoBlock,
   TechniqueBlock,
   ContextBlock,
+  AudioBlock,
+  NarrationBlock,
 } from './blocks';
 
 interface ContentBlockRendererProps {
@@ -109,6 +111,13 @@ export function ContentBlockRenderer({ block, onInteraction, onComplete }: Conte
     
     case 'dictation':
       return <ReadingBlock block={block} onInteraction={onInteraction} />;
+
+    // Blocs Audio V6
+    case 'audio':
+      return <AudioBlock block={block} onInteraction={onInteraction} onComplete={onComplete} />;
+    
+    case 'narration':
+      return <NarrationBlock block={block} onInteraction={onInteraction} onComplete={onComplete} />;
     
     default:
       return (

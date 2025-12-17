@@ -36,6 +36,15 @@ const TYPE_MAPPING: Record<string, ExerciseTemplateType> = {
   'listen_choose': 'listen_choose',
   'dictation': 'dictation',
   'spot_difference': 'spot_difference',
+  // V6 Exercise Types
+  'math_manipulation': 'math_manipulation',
+  'manipulation': 'math_manipulation',
+  'timeline_ordering': 'timeline_ordering',
+  'timeline': 'timeline_ordering',
+  'audio_recognition': 'audio_recognition',
+  'audio': 'audio_recognition',
+  'source_analysis': 'source_analysis',
+  'block_programming': 'block_programming',
 };
 
 function convertLegacyContent(type: string, content: Record<string, unknown>): Record<string, unknown> {
