@@ -246,20 +246,16 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
   const supabase = await createClient();
   const startTime = Date.now();
   
-  // Déterminer le type d'exercice si non spécifié - varier les types
-  const exerciseTypes: ExerciseType[] = ['qcm', 'fill_blank', 'drag_drop', 'free_input'];
+  // Déterminer le type d'exercice - varier les types
+  const exerciseTypes: ExerciseType[] = ['qcm', 'fill_blank', 'free_input'];
   const selectedType = config.exerciseType || exerciseTypes[Math.floor(Math.random() * exerciseTypes.length)];
-  
-  // Récupérer la configuration du modèle (utiliser le modèle de la matière si disponible)
-  const modelConfig = await getModelForTask('exercise_generation', config.skillId);
-  console.log('[generateExerciseWithAI] Model config:', modelConfig);
   
   // Récupérer les exercices existants pour éviter les doublons
   const { data: existingExercises } = await supabase
     .from('exercises')
     .select('content')
     .eq('skill_id', config.skillId)
-    .limit(5);
+    .limit(10);
   
   const existingQuestions = existingExercises?.map(e => {
     const content = e.content as Record<string, unknown>;
@@ -267,98 +263,72 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
   }).filter(q => q).join('\n- ') || '';
   
   const avoidDuplicatesPrompt = existingQuestions 
-    ? `\n\nIMPORTANT: Génère un exercice DIFFÉRENT des exercices existants. Questions à éviter:\n- ${existingQuestions}`
+    ? `\n\nATTENTION: Génère un exercice COMPLÈTEMENT DIFFÉRENT. Questions déjà utilisées (NE PAS RÉPÉTER):\n- ${existingQuestions}`
     : '';
   
-  // Construire le prompt
-  const systemPrompt = `Tu es un expert en pédagogie pour enfants. Tu génères des exercices éducatifs de haute qualité et VARIÉS.
+  // Construire le prompt simplifié
+  const systemPrompt = `Tu es un expert en pédagogie. Génère un exercice éducatif en JSON uniquement.
 
-RÈGLES STRICTES:
-1. Réponds UNIQUEMENT avec du JSON valide, sans texte avant ou après
-2. Le contenu doit être en ${config.language === 'fr' ? 'français' : config.language === 'ar' ? 'arabe' : 'anglais'}
-3. Adapte la difficulté au niveau ${config.difficulty}/5
-4. L'exercice doit être approprié pour un enfant de ${config.targetAge} ans
-5. VARIE les questions et contextes - ne répète jamais la même question
-
-${getPedagogicalStylePrompt(config.pedagogicalMethod, config.targetAge)}
+RÈGLES:
+1. Réponds UNIQUEMENT avec du JSON valide
+2. Contenu en français
+3. Adapté pour un enfant de ${config.targetAge} ans
+4. VARIE les questions - chaque exercice doit être unique
 
 ${getExerciseTypePrompt(selectedType)}`;
 
-  const userPrompt = `Génère un exercice UNIQUE et ORIGINAL pour la compétence suivante:
-- Compétence: ${config.skillName}
-- Description: ${config.skillDescription}
-- Difficulté: ${config.difficulty}/5
-- Âge cible: ${config.targetAge} ans
+  const userPrompt = `Génère un exercice ${selectedType.toUpperCase()} UNIQUE pour: ${config.skillName}
+${config.skillDescription ? `Description: ${config.skillDescription}` : ''}
 ${avoidDuplicatesPrompt}
 
-Génère UNIQUEMENT le JSON, rien d'autre.`;
+JSON uniquement:`;
 
   try {
-    // Récupérer la clé API
-    const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.error('[generateExerciseWithAI] No API key configured');
-      throw new Error('No API key configured');
+      console.error('[generateExerciseWithAI] No OPENAI_API_KEY configured');
+      return null;
     }
 
-    const provider: AIProvider = modelConfig.model.startsWith('gpt') ? 'openai' : 'anthropic';
-    console.log('[generateExerciseWithAI] Calling AI with provider:', provider, 'model:', modelConfig.model);
+    console.log('[generateExerciseWithAI] Calling OpenAI gpt-4o-mini');
     
-    const result = await createAICompletion(provider, apiKey, {
+    const result = await createAICompletion('openai', apiKey, {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      model: modelConfig.model,
-      temperature: modelConfig.temperature,
-      maxTokens: modelConfig.maxTokens,
+      model: 'gpt-4o-mini',
+      temperature: 0.9,
+      maxTokens: 800,
     });
 
-    console.log('[generateExerciseWithAI] AI response received, content length:', result.content?.length);
+    console.log('[generateExerciseWithAI] AI response received, length:', result.content?.length);
 
-    // Parser la réponse JSON
     const jsonMatch = result.content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('[generateExerciseWithAI] No valid JSON in response:', result.content?.substring(0, 200));
-      throw new Error('No valid JSON in response');
+      console.error('[generateExerciseWithAI] No JSON in response:', result.content?.substring(0, 200));
+      return null;
     }
 
     const exercise = JSON.parse(jsonMatch[0]) as GeneratedExercise;
     exercise.difficulty = config.difficulty;
-    console.log('[generateExerciseWithAI] Exercise parsed successfully, type:', exercise.type);
+    exercise.type = exercise.type || selectedType;
+    console.log('[generateExerciseWithAI] Success, type:', exercise.type);
 
-    // Logger la génération (ignore errors)
+    // Log generation (ignore errors)
     const generationTime = Date.now() - startTime;
-    try {
-      await supabase.from('ai_generation_logs').insert({
-        skill_id: config.skillId,
-        model_used: modelConfig.model,
-        tokens_input: result.usage?.promptTokens || 0,
-        tokens_output: result.usage?.completionTokens || 0,
-        generation_time_ms: generationTime,
-        success: true,
-      });
-    } catch (logError) {
-      console.log('[generateExerciseWithAI] Failed to log generation (RLS?):', logError);
-    }
+    void supabase.from('ai_generation_logs').insert({
+      skill_id: config.skillId,
+      model_used: 'gpt-4o-mini',
+      tokens_input: result.usage?.promptTokens || 0,
+      tokens_output: result.usage?.completionTokens || 0,
+      generation_time_ms: generationTime,
+      success: true,
+    });
 
     return exercise;
   } catch (error) {
     console.error('[generateExerciseWithAI] Error:', error);
-    
-    // Logger l'erreur (ignore errors)
-    try {
-      await supabase.from('ai_generation_logs').insert({
-        skill_id: config.skillId,
-        model_used: modelConfig.model,
-        generation_time_ms: Date.now() - startTime,
-        success: false,
-        error_message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    } catch (logError) {
-      console.log('[generateExerciseWithAI] Failed to log error (RLS?):', logError);
-    }
-
     return null;
   }
 }
@@ -465,12 +435,10 @@ export async function getOrCreateExercise(
     limitReached: !canGenerateWithPlatformTokens,
   };
 
-  // Vision V2: Générer un nouvel exercice si:
-  // - Moins de 3 exercices disponibles non tentés récemment
-  // - OU si tous les exercices ont été tentés récemment (pour varier)
-  const MIN_AVAILABLE_EXERCISES = 3;
-  const allExercisesDoneRecently = totalExercises > 0 && availableExercises.length === 0;
-  const shouldGenerateNew = availableExercises.length < MIN_AVAILABLE_EXERCISES || allExercisesDoneRecently;
+  // Vision V2: Toujours générer un nouvel exercice si le quota n'est pas atteint
+  // Cela garantit la variété des exercices
+  const MIN_POOL_SIZE = 5; // Taille minimale du pool avant de réutiliser
+  const shouldGenerateNew = totalExercises < MIN_POOL_SIZE;
 
   console.log(`[getOrCreateExercise] availableExercises: ${availableExercises.length}, totalExercises: ${totalExercises}, shouldGenerateNew: ${shouldGenerateNew}, canGenerate: ${canGenerateWithPlatformTokens}`);
 
