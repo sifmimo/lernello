@@ -435,14 +435,13 @@ export async function getOrCreateExercise(
     limitReached: !canGenerateWithPlatformTokens,
   };
 
-  // Vision V2: Toujours générer un nouvel exercice si le quota n'est pas atteint
-  // Cela garantit la variété des exercices
-  const MIN_POOL_SIZE = 5; // Taille minimale du pool avant de réutiliser
-  const shouldGenerateNew = totalExercises < MIN_POOL_SIZE;
+  // Vision V2 Section 11: Toujours générer un nouvel exercice tant que le quota de 10 n'est pas atteint
+  // Cela garantit la variété maximale des exercices (jusqu'à 10 différents)
+  const shouldGenerateNew = canGenerateWithPlatformTokens;
 
   console.log(`[getOrCreateExercise] availableExercises: ${availableExercises.length}, totalExercises: ${totalExercises}, shouldGenerateNew: ${shouldGenerateNew}, canGenerate: ${canGenerateWithPlatformTokens}`);
 
-  if (shouldGenerateNew && canGenerateWithPlatformTokens) {
+  if (shouldGenerateNew) {
     console.log(`[AI] Génération d'un nouvel exercice: ${availableExercises.length} disponibles, ${totalExercises}/${MAX_EXERCISES_PER_SKILL} total`);
     
     // Tenter de générer un nouvel exercice avec l'IA
@@ -488,8 +487,6 @@ export async function getOrCreateExercise(
     } catch (aiError) {
       console.error('[AI] Erreur génération exercice:', aiError);
     }
-  } else if (shouldGenerateNew && !canGenerateWithPlatformTokens) {
-    // Vision V2: Au-delà de 10 exercices, informer l'utilisateur
   }
 
   // Prioriser les exercices par difficulté adaptée
