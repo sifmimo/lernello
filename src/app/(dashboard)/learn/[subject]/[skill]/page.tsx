@@ -1,7 +1,7 @@
-import SkillClient from './SkillClient';
+import SkillClientV9 from './SkillClientV9';
 
 export const dynamic = 'force-dynamic';
 
 export default function Page() {
-  return <SkillClient />;
+  return <SkillClientV9 />;
 }
