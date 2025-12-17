@@ -755,6 +755,7 @@ export default function SkillExercisePage() {
 
                 {/* Exercice V4 */}
                 <ExerciseRenderer
+                  key={`exercise-${currentExercise.id}-${currentIndex}`}
                   exercise={currentExercise}
                   onAnswer={(correct, answer) => {
                     setIsCorrect(correct);
