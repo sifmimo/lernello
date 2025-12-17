@@ -24,21 +24,26 @@ export async function fetchOrGenerateExercise(
   error?: string;
 }> {
   try {
+    console.log('[fetchOrGenerateExercise] Starting for skill:', skillId, 'student:', studentId);
     const supabase = await createClient();
     
     // Récupérer les préférences de l'élève
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('student_profiles')
-      .select('preferred_language, pedagogical_method')
+      .select('preferred_language, preferred_method')
       .eq('id', studentId)
       .single();
+
+    console.log('[fetchOrGenerateExercise] Profile:', profile, 'error:', profileError);
 
     const result = await getOrCreateExercise(
       skillId,
       studentId,
       profile?.preferred_language || 'fr',
-      profile?.pedagogical_method || 'standard'
+      profile?.preferred_method || 'standard'
     );
+
+    console.log('[fetchOrGenerateExercise] getOrCreateExercise result:', result ? 'success' : 'null');
 
     if (!result) {
       return { success: false, error: 'Impossible de récupérer ou générer un exercice' };

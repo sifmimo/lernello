@@ -149,12 +149,12 @@ export default function SkillExercisePage() {
       try {
         const { data: subjectInfo } = await supabase
           .from('subjects')
-          .select('name')
+          .select('name_key')
           .eq('code', subject)
           .single();
         
         if (subjectInfo) {
-          setSubjectName(subjectInfo.name || subject);
+          setSubjectName(subjectInfo.name_key || subject);
         }
       } catch (e) {
         setSubjectName(subject);
@@ -163,13 +163,15 @@ export default function SkillExercisePage() {
       // Charger le profil étudiant pour les micro-leçons V7
       try {
         const { data: studentData } = await supabase
-          .from('students')
-          .select('age')
+          .from('student_profiles')
+          .select('birth_year')
           .eq('id', profileId)
           .single();
         
-        if (studentData?.age) {
-          setStudentAge(Math.max(6, Math.min(12, studentData.age)));
+        if (studentData?.birth_year) {
+          const currentYear = new Date().getFullYear();
+          const calculatedAge = currentYear - studentData.birth_year;
+          setStudentAge(Math.max(6, Math.min(12, calculatedAge)));
         }
       } catch (e) {
         console.log('Student age not available, using default');
@@ -206,13 +208,17 @@ export default function SkillExercisePage() {
       setPresentationChecked(true);
 
       // Utiliser le système auto-alimenté
+      console.log('[SkillClient] Fetching exercise for skill:', skillData.id, 'profile:', profileId);
       const result = await fetchOrGenerateExercise(skillData.id, profileId);
+      console.log('[SkillClient] Exercise result:', result);
       
       if (result.success && result.exercise) {
         setExercises([result.exercise as Exercise]);
         setIsAIGenerated(result.isAIGenerated || false);
         setStats({ total: 1, correct: 0, startTime: new Date() });
         setExerciseStartTime(new Date());
+      } else {
+        console.error('[SkillClient] Failed to get exercise:', result.error);
       }
       setLoading(false);
     };

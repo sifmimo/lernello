@@ -242,6 +242,7 @@ function getPedagogicalStylePrompt(method: string, age: number): string {
 }
 
 export async function generateExerciseWithAI(config: GenerationConfig): Promise<GeneratedExercise | null> {
+  console.log('[generateExerciseWithAI] Starting for skill:', config.skillName);
   const supabase = await createClient();
   const startTime = Date.now();
   
@@ -251,6 +252,7 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
   
   // Récupérer la configuration du modèle (utiliser le modèle de la matière si disponible)
   const modelConfig = await getModelForTask('exercise_generation', config.skillId);
+  console.log('[generateExerciseWithAI] Model config:', modelConfig);
   
   // Construire le prompt
   const systemPrompt = `Tu es un expert en pédagogie pour enfants. Tu génères des exercices éducatifs de haute qualité.
@@ -277,10 +279,12 @@ Génère UNIQUEMENT le JSON, rien d'autre.`;
     // Récupérer la clé API
     const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
+      console.error('[generateExerciseWithAI] No API key configured');
       throw new Error('No API key configured');
     }
 
     const provider: AIProvider = modelConfig.model.startsWith('gpt') ? 'openai' : 'anthropic';
+    console.log('[generateExerciseWithAI] Calling AI with provider:', provider, 'model:', modelConfig.model);
     
     const result = await createAICompletion(provider, apiKey, {
       messages: [
@@ -292,38 +296,50 @@ Génère UNIQUEMENT le JSON, rien d'autre.`;
       maxTokens: modelConfig.maxTokens,
     });
 
+    console.log('[generateExerciseWithAI] AI response received, content length:', result.content?.length);
+
     // Parser la réponse JSON
     const jsonMatch = result.content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error('[generateExerciseWithAI] No valid JSON in response:', result.content?.substring(0, 200));
       throw new Error('No valid JSON in response');
     }
 
     const exercise = JSON.parse(jsonMatch[0]) as GeneratedExercise;
     exercise.difficulty = config.difficulty;
+    console.log('[generateExerciseWithAI] Exercise parsed successfully, type:', exercise.type);
 
-    // Logger la génération
+    // Logger la génération (ignore errors)
     const generationTime = Date.now() - startTime;
-    await supabase.from('ai_generation_logs').insert({
-      skill_id: config.skillId,
-      model_used: modelConfig.model,
-      tokens_input: result.usage?.promptTokens || 0,
-      tokens_output: result.usage?.completionTokens || 0,
-      generation_time_ms: generationTime,
-      success: true,
-    });
+    try {
+      await supabase.from('ai_generation_logs').insert({
+        skill_id: config.skillId,
+        model_used: modelConfig.model,
+        tokens_input: result.usage?.promptTokens || 0,
+        tokens_output: result.usage?.completionTokens || 0,
+        generation_time_ms: generationTime,
+        success: true,
+      });
+    } catch (logError) {
+      console.log('[generateExerciseWithAI] Failed to log generation (RLS?):', logError);
+    }
 
     return exercise;
   } catch (error) {
-    console.error('Error generating exercise:', error);
+    console.error('[generateExerciseWithAI] Error:', error);
     
-    // Logger l'erreur
-    await supabase.from('ai_generation_logs').insert({
-      skill_id: config.skillId,
-      model_used: modelConfig.model,
-      generation_time_ms: Date.now() - startTime,
-      success: false,
-      error_message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    // Logger l'erreur (ignore errors)
+    try {
+      await supabase.from('ai_generation_logs').insert({
+        skill_id: config.skillId,
+        model_used: modelConfig.model,
+        generation_time_ms: Date.now() - startTime,
+        success: false,
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } catch (logError) {
+      console.log('[generateExerciseWithAI] Failed to log error (RLS?):', logError);
+    }
 
     return null;
   }
@@ -344,14 +360,21 @@ export async function getOrCreateExercise(
 ): Promise<{ exercise: GeneratedExercise & { id: string }; isNew: boolean; quotaInfo?: ExerciseQuotaInfo } | null> {
   const supabase = await createClient();
 
+  console.log('[getOrCreateExercise] Starting for skill:', skillId, 'student:', studentId);
+
   // Récupérer les infos de la compétence
-  const { data: skill } = await supabase
+  const { data: skill, error: skillError } = await supabase
     .from('skills')
     .select('id, code, name_key, description_key, difficulty_level')
     .eq('id', skillId)
     .single();
 
-  if (!skill) return null;
+  console.log('[getOrCreateExercise] Skill data:', skill, 'error:', skillError);
+
+  if (!skill) {
+    console.error('[getOrCreateExercise] Skill not found for id:', skillId);
+    return null;
+  }
 
   // Récupérer le niveau de l'élève pour cette compétence (table existante)
   const { data: progressData } = await supabase
@@ -381,11 +404,14 @@ export async function getOrCreateExercise(
   // Récupérer le profil de l'élève pour l'âge
   const { data: studentProfile } = await supabase
     .from('student_profiles')
-    .select('age')
+    .select('birth_year')
     .eq('id', studentId)
     .single();
 
-  const targetAge = studentProfile?.age || 8;
+  const currentYear = new Date().getFullYear();
+  const targetAge = studentProfile?.birth_year 
+    ? Math.max(6, Math.min(12, currentYear - studentProfile.birth_year))
+    : 8;
 
   // Chercher TOUS les exercices validés pour cette compétence
   const { data: allExercises } = await supabase
@@ -508,6 +534,7 @@ export async function getOrCreateExercise(
   }
 
   // Aucun exercice en base, tenter de générer avec l'IA
+  console.log('[getOrCreateExercise] No exercises in DB, generating with AI for skill:', skill.name_key);
   try {
     const generatedExercise = await generateExerciseWithAI({
       skillId: skill.id,
@@ -519,7 +546,12 @@ export async function getOrCreateExercise(
       targetAge,
     });
 
-    if (!generatedExercise) return null;
+    console.log('[getOrCreateExercise] AI generation result:', generatedExercise ? 'success' : 'null');
+
+    if (!generatedExercise) {
+      console.error('[getOrCreateExercise] AI generation returned null');
+      return null;
+    }
 
     // Tenter de sauvegarder l'exercice généré en base
     const { data: savedExercise, error } = await supabase
