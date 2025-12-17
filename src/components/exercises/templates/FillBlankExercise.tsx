@@ -64,6 +64,41 @@ export function FillBlankExercise({ content, onAnswer, disabled }: FillBlankExer
     }
   };
 
+  const normalizeText = (text: string): string => {
+    return text
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/['']/g, "'")
+      .replace(/\s+/g, ' ');
+  };
+
+  const isAnswerCorrect = (userAnswer: string, correctAnswer: string, alternatives: string[] = []): boolean => {
+    const normalizedUser = normalizeText(userAnswer);
+    const normalizedCorrect = normalizeText(correctAnswer);
+    
+    if (normalizedUser === normalizedCorrect) return true;
+    if (alternatives.some(alt => normalizeText(alt) === normalizedUser)) return true;
+    
+    // Tolérance pour les petites erreurs de frappe (1 caractère de différence)
+    if (Math.abs(normalizedUser.length - normalizedCorrect.length) <= 1) {
+      let differences = 0;
+      const maxLen = Math.max(normalizedUser.length, normalizedCorrect.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (normalizedUser[i] !== normalizedCorrect[i]) differences++;
+        if (differences > 1) break;
+      }
+      if (differences <= 1 && normalizedUser.length >= 3) return true;
+    }
+    
+    // Accepter si le mot est contenu (pour les articles manquants)
+    if (normalizedCorrect.includes(normalizedUser) && normalizedUser.length >= normalizedCorrect.length * 0.7) return true;
+    if (normalizedUser.includes(normalizedCorrect) && normalizedCorrect.length >= 3) return true;
+    
+    return false;
+  };
+
   const handleSubmit = () => {
     if (showResult) return;
 
@@ -71,11 +106,10 @@ export function FillBlankExercise({ content, onAnswer, disabled }: FillBlankExer
     let allCorrect = true;
 
     content.blanks.forEach(blank => {
-      const userAnswer = (answers[blank.id] || '').trim().toLowerCase();
-      const correctAnswer = blank.answer.toLowerCase();
-      const alternatives = blank.alternatives?.map(a => a.toLowerCase()) || [];
+      const userAnswer = answers[blank.id] || '';
+      const alternatives = blank.alternatives || [];
       
-      const isBlankCorrect = userAnswer === correctAnswer || alternatives.includes(userAnswer);
+      const isBlankCorrect = isAnswerCorrect(userAnswer, blank.answer, alternatives);
       results[blank.id] = isBlankCorrect;
       if (!isBlankCorrect) allCorrect = false;
     });

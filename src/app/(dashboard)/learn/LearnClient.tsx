@@ -15,6 +15,7 @@ interface Subject {
   name_key: string;
   icon: string | null;
   sort_order: number | null;
+  translatedName?: string;
 }
 
 interface StudentProgress {
@@ -30,9 +31,11 @@ const subjectIcons: Record<string, React.ReactNode> = {
   informatique: <Code className="h-8 w-8" />,
   french: <BookOpen className="h-8 w-8" />,
   science: <FlaskConical className="h-8 w-8" />,
+  sciences: <FlaskConical className="h-8 w-8" />,
   geography: <Globe className="h-8 w-8" />,
   art: <Palette className="h-8 w-8" />,
   music: <Music className="h-8 w-8" />,
+  musique: <Music className="h-8 w-8" />,
 };
 
 const subjectColors: Record<string, string> = {
@@ -41,9 +44,11 @@ const subjectColors: Record<string, string> = {
   informatique: 'from-purple-500 to-violet-600',
   french: 'from-green-500 to-emerald-600',
   science: 'from-purple-500 to-violet-600',
+  sciences: 'from-emerald-500 to-teal-600',
   geography: 'from-orange-500 to-amber-600',
   art: 'from-pink-500 to-rose-600',
   music: 'from-teal-500 to-cyan-600',
+  musique: 'from-rose-500 to-pink-600',
 };
 
 export default function LearnPage() {
@@ -83,7 +88,23 @@ export default function LearnPage() {
       .order('sort_order', { ascending: true });
 
     if (!error && data) {
-      setSubjects(data);
+      // Charger les traductions depuis content_translations
+      const { data: translations } = await supabase
+        .from('content_translations')
+        .select('key, value')
+        .like('key', 'subjects.%')
+        .eq('language', 'fr');
+      
+      const translationMap = new Map<string, string>();
+      translations?.forEach(t => translationMap.set(t.key, t.value));
+      
+      // Ajouter les traductions aux matières
+      const subjectsWithTranslations = data.map(subject => ({
+        ...subject,
+        translatedName: translationMap.get(subject.name_key) || translationMap.get(`subjects.${subject.code}`) || subject.name_key,
+      }));
+      
+      setSubjects(subjectsWithTranslations);
     }
     setLoading(false);
   };
@@ -231,7 +252,7 @@ export default function LearnPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">
-                      {t(`subjects.${subject.code}`) !== `subjects.${subject.code}` ? t(`subjects.${subject.code}`) : subject.name_key}
+                      {subject.translatedName || t(`subjects.${subject.code}`) || subject.name_key}
                     </h3>
                     <p className="text-sm text-gray-500">Continuer à apprendre</p>
                   </div>

@@ -159,6 +159,7 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
         status: 'draft',
         language: language,
         method_code: method,
+        ai_model_id: aiModelId,
       })
       .select()
       .single();

@@ -66,9 +66,13 @@ function convertLegacyContent(type: string, content: Record<string, unknown>): R
       return {
         question: content.question,
         correct_answer: content.answer,
+        alternatives: content.acceptedAnswers || [],
+        acceptedAnswers: content.acceptedAnswers || [],
         hint: content.hint,
         keyboard_layout: 'letters',
         show_virtual_keyboard: false,
+        accept_partial: true,
+        useAIEvaluation: content.useAIEvaluation !== false,
         feedback_correct: '🎉 Excellent !',
         feedback_incorrect: 'Ce n\'est pas la bonne réponse.',
       };

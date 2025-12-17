@@ -11,8 +11,10 @@ interface TypeAnswerExerciseProps {
     question_audio?: string;
     correct_answer: string;
     alternatives?: string[];
+    acceptedAnswers?: string[];
     case_sensitive?: boolean;
     accept_partial?: boolean;
+    useAIEvaluation?: boolean;
     hint?: string;
     keyboard_layout?: 'letters' | 'numbers' | 'special';
     show_virtual_keyboard?: boolean;
@@ -62,12 +64,46 @@ export function TypeAnswerExercise({ content, onAnswer, disabled }: TypeAnswerEx
     
     if (normalizedUser === normalizedCorrect) return true;
     
+    // Vérifier les alternatives classiques
     if (content.alternatives) {
-      return content.alternatives.some(alt => normalizeAnswer(alt) === normalizedUser);
+      if (content.alternatives.some(alt => normalizeAnswer(alt) === normalizedUser)) return true;
     }
     
-    if (content.accept_partial) {
-      return normalizedCorrect.includes(normalizedUser) || normalizedUser.includes(normalizedCorrect);
+    // Vérifier les réponses acceptées (nouveau format V6)
+    if (content.acceptedAnswers) {
+      if (content.acceptedAnswers.some(alt => normalizeAnswer(alt) === normalizedUser)) return true;
+    }
+    
+    // Évaluation flexible: accepter les réponses sémantiquement similaires
+    if (content.useAIEvaluation || content.accept_partial) {
+      // Mots à ignorer (articles, prépositions, etc.)
+      const stopWords = new Set(['le', 'la', 'les', 'un', 'une', 'des', 'de', 'du', 'et', 'ou', 'est', 'sont', 'a', 'ont', 'qui', 'que', 'dans', 'sur', 'avec', 'pour', 'par', 'au', 'aux', 'ce', 'cette', 'ces', 'il', 'elle', 'ils', 'elles', 'je', 'tu', 'nous', 'vous', 'y', 'en']);
+      
+      const userWords = normalizedUser.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      const correctWords = normalizedCorrect.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      
+      // Pour les réponses longues (descriptions), être plus tolérant
+      const isLongAnswer = normalizedCorrect.length > 50 || normalizedUser.length > 50;
+      const threshold = isLongAnswer ? 0.3 : 0.6;
+      
+      if (correctWords.length > 0 && userWords.length > 0) {
+        // Compter les mots similaires (correspondance partielle)
+        const matchingWords = userWords.filter(w => 
+          correctWords.some(cw => 
+            cw.includes(w) || w.includes(cw) || 
+            (w.length > 4 && cw.length > 4 && (w.slice(0, 4) === cw.slice(0, 4)))
+          )
+        );
+        
+        // Accepter si suffisamment de mots correspondent
+        if (matchingWords.length / Math.min(correctWords.length, userWords.length) >= threshold) return true;
+        
+        // Pour les descriptions, accepter si l'utilisateur a écrit au moins 3 phrases pertinentes
+        if (isLongAnswer && userWords.length >= 5 && matchingWords.length >= 2) return true;
+      }
+      
+      // Vérification de sous-chaîne
+      if (normalizedCorrect.includes(normalizedUser) || normalizedUser.includes(normalizedCorrect)) return true;
     }
     
     return false;

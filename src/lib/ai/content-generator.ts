@@ -33,8 +33,66 @@ interface GeneratedExercise {
   difficulty: number;
 }
 
-async function getModelForTask(taskType: string): Promise<{ model: AIModel; maxTokens: number; temperature: number }> {
+async function getModelForSubject(skillId: string): Promise<{ model: AIModel; provider: string } | null> {
   const supabase = await createClient();
+  
+  // Récupérer le modèle IA de la matière via la compétence
+  const { data: skillData } = await supabase
+    .from('skills')
+    .select('id, domain_id')
+    .eq('id', skillId)
+    .single();
+  
+  if (!skillData?.domain_id) return null;
+  
+  // Récupérer le domaine et la matière
+  const { data: domainData } = await supabase
+    .from('domains')
+    .select('id, subject_id')
+    .eq('id', skillData.domain_id)
+    .single();
+  
+  if (!domainData?.subject_id) return null;
+  
+  // Récupérer la matière avec son modèle IA
+  const { data: subjectData } = await supabase
+    .from('subjects')
+    .select('id, ai_model_id')
+    .eq('id', domainData.subject_id)
+    .single();
+  
+  if (!subjectData?.ai_model_id) return null;
+  
+  // Récupérer les détails du modèle
+  const { data: modelConfig } = await supabase
+    .from('ai_model_config')
+    .select('model_name, provider')
+    .eq('id', subjectData.ai_model_id)
+    .single();
+  
+  if (!modelConfig) return null;
+  
+  return {
+    model: modelConfig.model_name as AIModel,
+    provider: modelConfig.provider,
+  };
+}
+
+async function getModelForTask(taskType: string, skillId?: string): Promise<{ model: AIModel; maxTokens: number; temperature: number; provider?: string }> {
+  const supabase = await createClient();
+  
+  // Si un skillId est fourni, essayer de récupérer le modèle de la matière
+  if (skillId) {
+    const subjectModel = await getModelForSubject(skillId);
+    if (subjectModel) {
+      return {
+        model: subjectModel.model,
+        maxTokens: 2000,
+        temperature: 0.7,
+        provider: subjectModel.provider,
+      };
+    }
+  }
   
   // Récupérer les réglages globaux
   const { data: settings } = await supabase
@@ -117,8 +175,13 @@ Format JSON requis:
     "hint": "Un indice pour aider"
   }
 }
-- "items" sont les éléments à ordonner
-- "correctOrder" est l'ordre des indices pour avoir la bonne réponse`,
+RÈGLES STRICTES pour correctOrder:
+- "items" contient les éléments dans un ordre mélangé
+- "correctOrder" est un tableau d'INDICES NUMÉRIQUES (0, 1, 2, 3, 4...)
+- Chaque indice représente la position de l'élément de "items" dans l'ordre correct
+- Exemple: si items = ["C", "A", "B"] et l'ordre correct est A, B, C
+  alors correctOrder = [1, 2, 0] (A est à l'index 1, B à l'index 2, C à l'index 0)
+- JAMAIS de texte dans correctOrder, UNIQUEMENT des nombres`,
 
     free_input: `Type: Réponse libre
 Format JSON requis:
@@ -127,10 +190,14 @@ Format JSON requis:
   "content": {
     "question": "Combien font 3 + 4 ?",
     "answer": "7",
-    "hint": "Un indice pour aider"
+    "acceptedAnswers": ["7", "sept", "7.0"],
+    "hint": "Un indice pour aider",
+    "useAIEvaluation": true
   }
 }
-- "answer" est la réponse attendue (texte ou nombre)`,
+- "answer" est la réponse principale attendue
+- "acceptedAnswers" est un tableau de réponses alternatives acceptées (synonymes, variantes)
+- "useAIEvaluation": true permet une évaluation flexible par IA pour les réponses sémantiquement correctes`,
   };
 
   return prompts[type];
@@ -182,8 +249,8 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
   const exerciseTypes: ExerciseType[] = ['qcm', 'fill_blank', 'drag_drop', 'free_input'];
   const selectedType = config.exerciseType || exerciseTypes[Math.floor(Math.random() * exerciseTypes.length)];
   
-  // Récupérer la configuration du modèle
-  const modelConfig = await getModelForTask('exercise_generation');
+  // Récupérer la configuration du modèle (utiliser le modèle de la matière si disponible)
+  const modelConfig = await getModelForTask('exercise_generation', config.skillId);
   
   // Construire le prompt
   const systemPrompt = `Tu es un expert en pédagogie pour enfants. Tu génères des exercices éducatifs de haute qualité.
