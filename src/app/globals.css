@@ -68,3 +68,77 @@
     text-wrap: balance;
   }
 }
+
+/* Accessibility Styles - WCAG 2.1 AA */
+
+/* High Contrast Mode */
+.high-contrast {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --primary: 60 100% 50%;
+  --border: 0 0% 100%;
+}
+
+.high-contrast * {
+  border-color: white !important;
+}
+
+/* Large Text Mode */
+.large-text {
+  font-size: 125%;
+}
+
+.large-text h1 { font-size: 2.5rem; }
+.large-text h2 { font-size: 2rem; }
+.large-text h3 { font-size: 1.75rem; }
+.large-text p, .large-text span, .large-text button { font-size: 1.25rem; }
+
+/* Reduced Motion */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Focus Indicators */
+.focus-visible-always *:focus {
+  outline: 3px solid var(--ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* Dyslexia-Friendly Font */
+.dyslexia-font {
+  font-family: 'OpenDyslexic', 'Comic Sans MS', sans-serif;
+  letter-spacing: 0.05em;
+  word-spacing: 0.1em;
+  line-height: 1.8;
+}
+
+/* Color Blind Modes */
+.colorblind-protanopia {
+  filter: url('#protanopia-filter');
+}
+
+.colorblind-deuteranopia {
+  filter: url('#deuteranopia-filter');
+}
+
+.colorblind-tritanopia {
+  filter: url('#tritanopia-filter');
+}
+
+/* Skip to content link for screen readers */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  z-index: 9999;
+  padding: 1rem;
+  background: var(--primary);
+  color: white;
+}
+
+.skip-to-content:focus {
+  left: 0;
+}
