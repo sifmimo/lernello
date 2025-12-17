@@ -18,23 +18,14 @@ import { tts } from '@/lib/tts';
 import { SkillLearningFlow } from '@/components/skill-presentation';
 import { getSkillPresentations } from '@/server/actions/skill-presentations';
 import { SkillPresentation } from '@/types/skill-presentation';
+import { ExerciseRenderer } from '@/components/exercises';
 
 interface Exercise {
   id: string;
-  type: 'qcm' | 'fill_blank' | 'drag_drop' | 'free_input' | 'interactive';
-  content: {
-    question: string;
-    options?: string[];
-    correct?: number;
-    answer?: string;
-    blanks?: string[];
-    text?: string;
-    items?: string[];
-    targets?: string[];
-    correctOrder?: number[];
-    hint?: string;
-  };
+  type: string;
+  content: Record<string, unknown>;
   difficulty: number;
+  metadata?: Record<string, unknown>;
 }
 
 interface SessionStats {
@@ -119,7 +110,7 @@ export default function SkillExercisePage() {
       // Récupérer le skill en filtrant par les domaines de la matière
       const { data: skillData } = await supabase
         .from('skills')
-        .select('id, name_key, description_key, domain_id')
+        .select('id, name_key, display_name, description_key, domain_id')
         .eq('code', skillCode)
         .in('domain_id', domainIds)
         .single();
@@ -130,7 +121,7 @@ export default function SkillExercisePage() {
       }
 
       setSkillId(skillData.id);
-      setSkillName(skillData.name_key || skillCode);
+      setSkillName(skillData.display_name || skillData.name_key || skillCode);
 
       // Charger la progression actuelle
       const { data: progressData } = await supabase
@@ -184,8 +175,8 @@ export default function SkillExercisePage() {
       tts.stop();
       const timer = setTimeout(() => {
         if (!cancelled) {
-          const question = currentExercise.content.question;
-          tts.speakQuestion(question);
+          const question = currentExercise.content.question as string;
+          if (question) tts.speakQuestion(question);
         }
       }, 400);
       return () => {
@@ -214,75 +205,16 @@ export default function SkillExercisePage() {
 
   const speakQuestion = () => {
     if (currentExercise) {
-      tts.speakQuestion(currentExercise.content.question);
+      const question = currentExercise.content.question as string;
+      if (question) tts.speakQuestion(question);
     }
   };
 
+  // Note: checkAnswer est maintenant géré par ExerciseRenderer via onAnswer callback
   const checkAnswer = useCallback(() => {
-    if (!currentExercise || showResult) return;
-
-    let correct = false;
-    
-    if (currentExercise.type === 'qcm') {
-      correct = selectedAnswer === currentExercise.content.correct;
-    } else if (currentExercise.type === 'free_input') {
-      correct = inputAnswer.trim().toLowerCase() === currentExercise.content.answer?.toLowerCase();
-    } else if (currentExercise.type === 'fill_blank') {
-      const blanks = currentExercise.content.blanks || [];
-      correct = blanks.every((blank: string, i: number) => 
-        fillBlankAnswers[i]?.trim().toLowerCase() === blank.toLowerCase()
-      );
-    } else if (currentExercise.type === 'drag_drop') {
-      const correctOrder = currentExercise.content.correctOrder || [];
-      correct = dragDropOrder.length === correctOrder.length &&
-        dragDropOrder.every((val: number, i: number) => val === correctOrder[i]);
-    }
-
-    setIsCorrect(correct);
-    setShowResult(true);
-    setShowHint(false);
-
-    if (correct) {
-      playSound('correct');
-      const newStreak = streakCount + 1;
-      setStreakCount(newStreak);
-      setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
-      
-      // Mettre à jour le streak quotidien et gagner des XP
-      const profileId = localStorage.getItem('activeProfileId');
-      if (profileId) {
-        updateDailyStreak(profileId).catch(console.error);
-        const xpAmount = 10 + (newStreak >= 3 ? 5 : 0); // Bonus XP pour les séries
-        addXp(profileId, xpAmount, 'exercise_correct').catch(console.error);
-      }
-      
-      // Célébration selon le streak
-      if (newStreak >= 5 && newStreak % 5 === 0) {
-        setCelebrationType('streak');
-        setShowCelebration(true);
-        playSound('streak');
-        setTimeout(() => setShowCelebration(false), 2500);
-      } else {
-        setCelebrationType('correct');
-        setShowCelebration(true);
-        setTimeout(() => setShowCelebration(false), 1500);
-      }
-      
-      // Générer un encouragement IA
-      getEncouragement(newStreak >= 3 ? 'streak' : 'correct', newStreak)
-        .then(msg => setAiEncouragement(msg))
-        .catch(() => setAiEncouragement('Bravo ! 🎉'));
-    } else {
-      playSound('incorrect');
-      setStreakCount(0);
-      getEncouragement('incorrect')
-        .then(msg => setAiEncouragement(msg))
-        .catch(() => setAiEncouragement('Continue, tu vas y arriver ! 💪'));
-    }
-
-    // Sauvegarder la tentative
-    saveAttempt(correct);
-  }, [currentExercise, selectedAnswer, inputAnswer, fillBlankAnswers, dragDropOrder, showResult, streakCount]);
+    // Cette fonction est conservée pour compatibilité mais n'est plus utilisée
+    // Le nouveau ExerciseRenderer gère la validation directement
+  }, []);
 
   const saveAttempt = async (_correct: boolean) => {
     // La sauvegarde est gérée par submitAnswerAndGetNext dans nextExercise
@@ -360,26 +292,31 @@ export default function SkillExercisePage() {
     setHintsUsedCount(prev => prev + 1);
     
     try {
-      const correctAnswer = currentExercise.type === 'qcm' 
-        ? currentExercise.content.options?.[currentExercise.content.correct || 0] || ''
-        : currentExercise.content.answer || currentExercise.content.items?.join(', ') || '';
+      const content = currentExercise.content as Record<string, unknown>;
+      const options = content.options as string[] | undefined;
+      const correct = content.correct as number | undefined;
+      const answer = content.answer as string | undefined;
+      const items = content.items as string[] | undefined;
+      const question = content.question as string || '';
+      const hint = content.hint as string | undefined;
       
-      const result = await getAIHint(
-        currentExercise.content.question,
-        correctAnswer,
-        hintLevel + 1
-      );
+      const correctAnswer = currentExercise.type === 'qcm' 
+        ? options?.[correct || 0] || ''
+        : answer || items?.join(', ') || '';
+      
+      const result = await getAIHint(question, correctAnswer, hintLevel + 1);
       
       if (result.success && result.hint) {
         setAiHint(result.hint);
         setHintLevel(prev => prev + 1);
         setShowHint(true);
       } else {
-        setAiHint(currentExercise.content.hint || 'Réfléchis bien à la question...');
+        setAiHint(hint || 'Réfléchis bien à la question...');
         setShowHint(true);
       }
     } catch {
-      setAiHint(currentExercise.content.hint || 'Réfléchis bien à la question...');
+      const hint = (currentExercise.content as Record<string, unknown>).hint as string | undefined;
+      setAiHint(hint || 'Réfléchis bien à la question...');
       setShowHint(true);
     }
     
@@ -402,13 +339,16 @@ export default function SkillExercisePage() {
   };
 
   const initDragDrop = useCallback(() => {
-    if (currentExercise?.type === 'drag_drop' && currentExercise.content.items && dragDropOrder.length === 0) {
-      const shuffled = currentExercise.content.items.map((_: string, i: number) => i);
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    if (currentExercise?.type === 'drag_drop') {
+      const items = (currentExercise.content as Record<string, unknown>).items as string[] | undefined;
+      if (items && dragDropOrder.length === 0) {
+        const shuffled = items.map((_, i) => i);
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        setDragDropOrder(shuffled);
       }
-      setDragDropOrder(shuffled);
     }
   }, [currentExercise, dragDropOrder.length]);
 
@@ -416,10 +356,25 @@ export default function SkillExercisePage() {
     initDragDrop();
   }, [initDragDrop]);
 
+  // Calculer la progression vers le prochain niveau (déplacé ici pour être disponible dans sessionComplete)
+  const levelThresholds = [0, 3, 6, 10, 15, 20];
+  const nextLevelThreshold = levelThresholds[currentSkillLevel] || 20;
+  const prevLevelThreshold = levelThresholds[currentSkillLevel - 1] || 0;
+  const progressToNextLevel = Math.min(100, Math.round(((correctCount - prevLevelThreshold) / (nextLevelThreshold - prevLevelThreshold)) * 100));
+
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 via-white to-indigo-50/30">
+        <div className="text-center">
+          <div className="relative mx-auto h-20 w-20">
+            <div className="absolute inset-0 rounded-full border-4 border-indigo-100" />
+            <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
+            <div className="absolute inset-3 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-white animate-pulse" />
+            </div>
+          </div>
+          <p className="mt-4 text-gray-500 font-medium">Préparation des exercices...</p>
+        </div>
       </div>
     );
   }
@@ -427,57 +382,102 @@ export default function SkillExercisePage() {
   if (sessionComplete) {
     const percentage = Math.round((stats.correct / stats.total) * 100);
     const duration = Math.round((new Date().getTime() - stats.startTime.getTime()) / 1000);
+    const xpEarned = stats.correct * 10;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
-          <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full ${
-            percentage >= 80 ? 'bg-green-100' : percentage >= 50 ? 'bg-yellow-100' : 'bg-red-100'
-          }`}>
-            <Trophy className={`h-10 w-10 ${
-              percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-red-600'
-            }`} />
-          </div>
-          
-          <h1 className="text-2xl font-bold text-gray-900">
-            {percentage >= 80 ? 'Excellent !' : percentage >= 50 ? 'Bien joué !' : 'Continue !'}
-          </h1>
-          
-          <p className="mt-2 text-gray-600">
-            Tu as répondu correctement à {stats.correct} questions sur {stats.total}
-          </p>
-
-          <div className="mt-6 flex justify-center gap-8">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-indigo-600">{percentage}%</p>
-              <p className="text-sm text-gray-500">Score</p>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Carte principale */}
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden">
+            {/* Header avec couleur selon performance */}
+            <div className={`px-6 py-8 text-center ${
+              percentage >= 80 
+                ? 'bg-gradient-to-br from-emerald-500 to-green-600' 
+                : percentage >= 50 
+                  ? 'bg-gradient-to-br from-amber-500 to-orange-600'
+                  : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+            }`}>
+              <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                {percentage >= 80 ? (
+                  <Trophy className="h-10 w-10 text-white" />
+                ) : percentage >= 50 ? (
+                  <Star className="h-10 w-10 text-white" />
+                ) : (
+                  <Sparkles className="h-10 w-10 text-white" />
+                )}
+              </div>
+              <h1 className="text-3xl font-bold text-white">
+                {percentage >= 80 ? 'Excellent !' : percentage >= 50 ? 'Bien joué !' : 'Continue !'}
+              </h1>
+              <p className="mt-2 text-white/80">
+                {percentage >= 80 
+                  ? 'Tu maîtrises cette compétence !' 
+                  : percentage >= 50 
+                    ? 'Tu progresses bien !'
+                    : 'Chaque erreur est une leçon !'}
+              </p>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-indigo-600">{duration}s</p>
-              <p className="text-sm text-gray-500">Temps</p>
+
+            {/* Stats */}
+            <div className="p-6">
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 rounded-2xl bg-gray-50">
+                  <p className="text-3xl font-bold text-gray-900">{percentage}%</p>
+                  <p className="text-xs text-gray-500 mt-1">Précision</p>
+                </div>
+                <div className="text-center p-4 rounded-2xl bg-gray-50">
+                  <p className="text-3xl font-bold text-gray-900">{stats.correct}/{stats.total}</p>
+                  <p className="text-xs text-gray-500 mt-1">Réponses</p>
+                </div>
+                <div className="text-center p-4 rounded-2xl bg-gray-50">
+                  <p className="text-3xl font-bold text-gray-900">+{xpEarned}</p>
+                  <p className="text-xs text-gray-500 mt-1">XP gagnés</p>
+                </div>
+              </div>
+
+              {/* Barre de progression du niveau */}
+              <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-indigo-700">Niveau {currentSkillLevel}</span>
+                  <span className="text-xs text-indigo-600">{correctCount}/{nextLevelThreshold}</span>
+                </div>
+                <div className="h-3 bg-indigo-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                    style={{ width: `${progressToNextLevel}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <Link
+                  href={`/learn/${subject}`}
+                  className="flex-1 py-4 rounded-2xl border-2 border-gray-200 font-bold text-gray-700 hover:bg-gray-50 transition-colors text-center"
+                >
+                  Retour
+                </Link>
+                <button
+                  onClick={() => {
+                    setCurrentIndex(0);
+                    setSelectedAnswer(null);
+                    setInputAnswer('');
+                    setShowResult(false);
+                    setSessionComplete(false);
+                    setStats({ total: exercises.length, correct: 0, startTime: new Date() });
+                    setStreakCount(0);
+                  }}
+                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 font-bold text-white hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg shadow-indigo-200"
+                >
+                  Recommencer
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="mt-8 flex gap-3">
-            <Link
-              href={`/learn/${subject}`}
-              className="flex-1 rounded-lg border border-gray-300 py-3 font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Retour
-            </Link>
-            <button
-              onClick={() => {
-                setCurrentIndex(0);
-                setSelectedAnswer(null);
-                setInputAnswer('');
-                setShowResult(false);
-                setSessionComplete(false);
-                setStats({ total: exercises.length, correct: 0, startTime: new Date() });
-              }}
-              className="flex-1 rounded-lg bg-indigo-600 py-3 font-medium text-white hover:bg-indigo-700"
-            >
-              Recommencer
-            </button>
+          {/* Lumi encourageant */}
+          <div className="mt-6 flex justify-center">
+            <Lumi mood="celebrating" size="md" />
           </div>
         </div>
       </div>
@@ -486,14 +486,18 @@ export default function SkillExercisePage() {
 
   if (!currentExercise) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
-          <h1 className="text-xl font-bold text-gray-900">Pas d'exercices disponibles</h1>
-          <p className="mt-2 text-gray-600">Les exercices seront bientôt ajoutés !</p>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-gray-200/50 p-8 text-center">
+          <div className="mx-auto mb-6 h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center">
+            <BookOpen className="h-10 w-10 text-gray-400" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900">Pas encore d'exercices</h1>
+          <p className="mt-2 text-gray-500">Les exercices pour cette compétence arrivent bientôt !</p>
           <Link
             href={`/learn/${subject}`}
-            className="mt-6 inline-block rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white hover:bg-indigo-700"
+            className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 font-bold text-white hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg shadow-indigo-200"
           >
+            <ArrowLeft className="h-5 w-5" />
             Retour
           </Link>
         </div>
@@ -501,18 +505,12 @@ export default function SkillExercisePage() {
     );
   }
 
-  // Calculer la progression vers le prochain niveau
-  const levelThresholds = [0, 3, 6, 10, 15, 20];
-  const nextLevelThreshold = levelThresholds[currentSkillLevel] || 20;
-  const prevLevelThreshold = levelThresholds[currentSkillLevel - 1] || 0;
-  const progressToNextLevel = Math.min(100, Math.round(((correctCount - prevLevelThreshold) / (nextLevelThreshold - prevLevelThreshold)) * 100));
-
   const lumiMood = showResult 
     ? (isCorrect ? 'celebrating' : 'encouraging') 
     : (showHint ? 'thinking' : 'happy');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30">
       <VictoryCelebration 
         active={showCelebration} 
         type={celebrationType} 
@@ -520,70 +518,68 @@ export default function SkillExercisePage() {
         xpGained={isCorrect ? 10 : 0}
       />
       
-      <header className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Link href={`/learn/${subject}`} className="rounded-lg p-2 hover:bg-gray-100">
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
+      {/* Header moderne style Duolingo */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-100">
+        <div className="mx-auto max-w-3xl px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* Bouton retour */}
+            <Link 
+              href={`/learn/${subject}`} 
+              className="flex items-center justify-center h-10 w-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              <XCircle className="h-5 w-5 text-gray-500" />
             </Link>
             
-            {/* Bouton lecture vocale */}
-            <button
-              onClick={() => setTtsEnabled(!ttsEnabled)}
-              className={`rounded-lg p-2 transition-colors ${
-                ttsEnabled ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'
-              }`}
-              title={ttsEnabled ? 'Désactiver la lecture vocale' : 'Activer la lecture vocale'}
-            >
-              {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-            </button>
-            
-            {/* Bouton relire la question */}
-            {ttsEnabled && (
-              <button
-                onClick={speakQuestion}
-                className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
-              >
-                🔊 Relire
-              </button>
-            )}
-          </div>
-          
-          {/* Affichage du niveau avec étoiles */}
-          <div className="flex flex-col items-center">
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((level) => (
-                <Star
-                  key={level}
-                  className={`h-5 w-5 ${
-                    level <= currentSkillLevel
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
-                  }`}
+            {/* Barre de progression principale */}
+            <div className="flex-1 mx-4">
+              <div className="relative h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${((currentIndex + (showResult ? 1 : 0)) / exercises.length) * 100}%` }}
                 />
-              ))}
+                {/* Indicateurs de progression */}
+                <div className="absolute inset-0 flex items-center justify-between px-1">
+                  {exercises.map((_, idx) => (
+                    <div 
+                      key={idx}
+                      className={`h-2 w-2 rounded-full transition-all ${
+                        idx < currentIndex ? 'bg-white/80' : 
+                        idx === currentIndex ? 'bg-white scale-125 shadow-sm' : 
+                        'bg-gray-300/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-gray-200">
-              <div 
-                className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-500"
-                style={{ width: `${progressToNextLevel}%` }}
-              />
-            </div>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {correctCount}/{nextLevelThreshold} pour niveau {Math.min(5, currentSkillLevel + 1)}
-            </p>
-          </div>
 
-          <div className="text-sm font-medium text-gray-600">
-            {currentIndex + 1}/{exercises.length}
+            {/* Streak et XP */}
+            <div className="flex items-center gap-3">
+              {streakCount > 0 && (
+                <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-100 text-orange-600">
+                  <span className="text-lg">🔥</span>
+                  <span className="font-bold text-sm">{streakCount}</span>
+                </div>
+              )}
+              <button
+                onClick={() => setTtsEnabled(!ttsEnabled)}
+                className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${
+                  ttsEnabled 
+                    ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' 
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                }`}
+              >
+                {ttsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-8">
-        <div className="rounded-2xl bg-white p-8 shadow-xl">
-          {/* V4 Skill Presentation */}
-          {showPresentation && skillPresentation && skillId && (
+      <main className="mx-auto max-w-2xl px-4 py-6">
+        {/* V4 Skill Presentation */}
+        {showPresentation && skillPresentation && skillId && (
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden">
             <SkillLearningFlow
               skillId={skillId}
               skillName={skillName}
@@ -591,337 +587,253 @@ export default function SkillExercisePage() {
               onStartExercises={() => setShowPresentation(false)}
               onPresentationComplete={() => {}}
             />
-          )}
-
-          {/* Exercises Section - shown when presentation is not displayed */}
-          {!showPresentation && (
-            <>
-          {/* Theory toggle button */}
-          {skillId && (
-            <div className="mb-4 flex justify-center">
-              <button
-                onClick={() => setShowTheory(!showTheory)}
-                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-                  showTheory 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                }`}
-              >
-                <BookOpen className="h-4 w-4" />
-                {showTheory ? 'Masquer la théorie' : 'Voir la théorie'}
-                {!hasTheoryContent && <span className="text-xs opacity-75">(Générer)</span>}
-              </button>
-            </div>
-          )}
-
-          {/* Theory content */}
-          {showTheory && skillId && (
-            <div className="mb-6">
-              <SkillTheory skillId={skillId} skillName={skillName} />
-            </div>
-          )}
-
-          {/* Lumi companion */}
-          <div className="mb-6 flex justify-center">
-            <Lumi 
-              mood={lumiMood} 
-              size="md" 
-              message={aiEncouragement || undefined}
-              showMessage={showResult && !!aiEncouragement}
-            />
           </div>
+        )}
 
-          {/* AI Badge - visible indicator */}
-          <div className="mb-4 flex flex-wrap justify-center gap-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Exercice adaptatif</span>
-            </div>
-            {isAIGenerated && (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
-                <Wand2 className="h-3.5 w-3.5" />
-                <span>Généré par l'IA</span>
-              </div>
-            )}
-          </div>
-          
-          {/* Progress reason from AI */}
-          {progressReason && (
-            <div className="mb-4 rounded-lg bg-blue-50 p-3 text-center text-sm text-blue-700">
-              <Bot className="inline h-4 w-4 mr-1" />
-              {progressReason}
-            </div>
-          )}
-          
-          <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
-            {currentExercise.content.question}
-          </h2>
-
-          {currentExercise.type === 'qcm' && currentExercise.content.options && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {currentExercise.content.options.map((option, index) => (
-                <button
-                  key={index}
-                  onClick={() => !showResult && setSelectedAnswer(index)}
-                  disabled={showResult}
-                  className={`rounded-xl border-2 p-4 text-left text-lg font-medium transition-all ${
-                    showResult
-                      ? index === currentExercise.content.correct
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : index === selectedAnswer
-                        ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-gray-200 text-gray-500'
-                      : selectedAnswer === index
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                      : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
-                  }`}
-                >
-                  <span className="mr-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                  {option}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {currentExercise.type === 'free_input' && (
-            <div className="mx-auto max-w-md">
-              <input
-                type="text"
-                value={inputAnswer}
-                onChange={(e) => setInputAnswer(e.target.value)}
-                disabled={showResult}
-                placeholder="Ta réponse..."
-                className={`w-full rounded-xl border-2 px-6 py-4 text-center text-2xl font-bold transition-all ${
-                  showResult
-                    ? isCorrect
-                      ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-red-500 bg-red-50 text-red-700'
-                    : 'border-gray-200 focus:border-indigo-500 focus:outline-none'
-                }`}
-                onKeyDown={(e) => e.key === 'Enter' && !showResult && checkAnswer()}
-              />
-              {showResult && !isCorrect && (
-                <p className="mt-4 text-center text-lg text-gray-600">
-                  La bonne réponse était: <strong className="text-green-600">{currentExercise.content.answer}</strong>
-                </p>
-              )}
-            </div>
-          )}
-
-          {currentExercise.type === 'fill_blank' && currentExercise.content.text && (
-            <div className="mx-auto max-w-2xl">
-              <div className="text-xl leading-relaxed">
-                {currentExercise.content.text.split('___').map((part: string, index: number, array: string[]) => (
-                  <span key={index}>
-                    {part}
-                    {index < array.length - 1 && (
-                      <input
-                        type="text"
-                        value={fillBlankAnswers[index] || ''}
-                        onChange={(e) => {
-                          const newAnswers = [...fillBlankAnswers];
-                          newAnswers[index] = e.target.value;
-                          setFillBlankAnswers(newAnswers);
-                        }}
-                        disabled={showResult}
-                        className={`mx-1 w-24 rounded-lg border-2 px-3 py-1 text-center font-bold transition-all ${
-                          showResult
-                            ? fillBlankAnswers[index]?.trim().toLowerCase() === currentExercise.content.blanks?.[index]?.toLowerCase()
-                              ? 'border-green-500 bg-green-50 text-green-700'
-                              : 'border-red-500 bg-red-50 text-red-700'
-                            : 'border-indigo-300 focus:border-indigo-500 focus:outline-none'
-                        }`}
-                        placeholder="..."
-                      />
-                    )}
-                  </span>
-                ))}
-              </div>
-              {showResult && !isCorrect && currentExercise.content.blanks && (
-                <p className="mt-4 text-center text-lg text-gray-600">
-                  Les bonnes réponses: <strong className="text-green-600">{currentExercise.content.blanks.join(', ')}</strong>
-                </p>
-              )}
-            </div>
-          )}
-
-          {currentExercise.type === 'drag_drop' && currentExercise.content.items && (
-            <div className="mx-auto max-w-md">
-              <p className="mb-4 text-center text-gray-600">Réorganise les éléments dans le bon ordre</p>
-              <div className="space-y-2">
-                {dragDropOrder.map((itemIndex: number, position: number) => (
-                  <div
-                    key={position}
-                    className={`flex items-center gap-2 rounded-xl border-2 p-4 transition-all ${
-                      showResult
-                        ? currentExercise.content.correctOrder?.[position] === itemIndex
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-red-500 bg-red-50'
-                        : 'border-gray-200 bg-white hover:border-indigo-300'
-                    }`}
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600">
-                      {position + 1}
-                    </span>
-                    <span className="flex-1 text-lg font-medium">
-                      {currentExercise.content.items?.[itemIndex]}
-                    </span>
-                    {!showResult && (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => position > 0 && moveDragItem(position, position - 1)}
-                          disabled={position === 0}
-                          className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          onClick={() => position < dragDropOrder.length - 1 && moveDragItem(position, position + 1)}
-                          disabled={position === dragDropOrder.length - 1}
-                          className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
-                        >
-                          ↓
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {showResult && !isCorrect && currentExercise.content.items && currentExercise.content.correctOrder && (
-                <p className="mt-4 text-center text-lg text-gray-600">
-                  Bon ordre: <strong className="text-green-600">
-                    {currentExercise.content.correctOrder.map((i: number) => currentExercise.content.items?.[i]).join(' → ')}
-                  </strong>
-                </p>
-              )}
-            </div>
-          )}
-
-          {!showResult && (
-            <div className="mt-4 flex justify-center">
-              <button
-                onClick={requestAIHint}
-                disabled={loadingHint}
-                className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
-              >
-                {loadingHint ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-                ) : (
-                  <Lightbulb className="h-4 w-4" />
-                )}
-                {loadingHint ? 'L\'IA réfléchit...' : showHint ? 'Encore un indice' : 'Demander un indice à l\'IA'}
-              </button>
-            </div>
-          )}
-
-          {showHint && aiHint && (
-            <div className="mt-3 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 p-4 border border-indigo-100">
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
-                  <Bot className="h-4 w-4 text-indigo-600" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-indigo-600 mb-1">Indice de l'IA (niveau {hintLevel})</p>
-                  <p className="text-gray-700">{aiHint}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showResult && (
-            <div className="mt-6 space-y-3">
-              <div className={`flex items-center justify-center gap-3 rounded-xl p-4 ${
-                isCorrect ? 'bg-green-50' : 'bg-red-50'
-              }`}>
-                {isCorrect ? (
-                  <>
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                    <span className="text-lg font-medium text-green-700">Bravo, c'est correct !</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-6 w-6 text-red-600" />
-                    <span className="text-lg font-medium text-red-700">Ce n'est pas la bonne réponse</span>
-                  </>
-                )}
-              </div>
-              
-              {aiEncouragement && (
-                <div className="rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 p-4 border border-indigo-100">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
-                      <MessageCircle className="h-4 w-4 text-indigo-600" />
+        {/* Exercises Section */}
+        {!showPresentation && (
+          <div className="space-y-6">
+            {/* Carte d'exercice principale */}
+            <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden">
+              {/* Header de la carte avec info skill */}
+              <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+                      <Sparkles className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-indigo-600 mb-1">Message de l'IA</p>
-                      <p className="text-gray-700">{aiEncouragement}</p>
+                      <h1 className="font-bold text-gray-900">{skillName || 'Exercice'}</h1>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((level) => (
+                            <Star
+                              key={level}
+                              className={`h-4 w-4 ${
+                                level <= currentSkillLevel
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-gray-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-gray-500">Niveau {currentSkillLevel}</span>
+                      </div>
                     </div>
                   </div>
+                  
+                  {/* Badges */}
+                  <div className="flex flex-col items-end gap-1">
+                    {isAIGenerated && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                        <Wand2 className="h-3 w-3" />
+                        IA
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400">
+                      Question {currentIndex + 1}/{exercises.length}
+                    </span>
+                  </div>
                 </div>
-              )}
-              
-              {/* Rating system */}
-              <div className="rounded-xl bg-gray-50 p-4 border border-gray-200">
-                <p className="text-sm text-gray-600 text-center mb-2">Cet exercice t'a plu ?</p>
-                <div className="flex justify-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => handleRating(star)}
-                      className="p-1 transition-transform hover:scale-110"
-                    >
-                      <Star
-                        className={`h-6 w-6 ${
-                          star <= userRating
-                            ? 'fill-yellow-400 text-yellow-400'
-                            : 'text-gray-300 hover:text-yellow-300'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-                {userRating > 0 && (
-                  <p className="text-xs text-center text-green-600 mt-1">Merci pour ton avis !</p>
+              </div>
+
+              {/* Contenu de l'exercice */}
+              <div className="p-6">
+                {/* Bouton théorie discret */}
+                {skillId && hasTheoryContent && (
+                  <button
+                    onClick={() => setShowTheory(!showTheory)}
+                    className="mb-4 text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    <BookOpen className="h-3 w-3" />
+                    {showTheory ? 'Masquer la théorie' : 'Revoir la théorie'}
+                  </button>
                 )}
+
+                {showTheory && skillId && (
+                  <div className="mb-6 p-4 bg-indigo-50 rounded-2xl">
+                    <SkillTheory skillId={skillId} skillName={skillName} />
+                  </div>
+                )}
+
+                {/* Exercice V4 */}
+                <ExerciseRenderer
+                  exercise={currentExercise}
+                  onAnswer={(correct, answer) => {
+                    setIsCorrect(correct);
+                    setShowResult(true);
+                    
+                    if (correct) {
+                      playSound('correct');
+                      const newStreak = streakCount + 1;
+                      setStreakCount(newStreak);
+                      setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
+                      setCorrectCount(prev => prev + 1);
+                      
+                      const profileId = localStorage.getItem('activeProfileId');
+                      if (profileId) {
+                        updateDailyStreak(profileId).catch(console.error);
+                        const xpAmount = 10 + (newStreak >= 3 ? 5 : 0);
+                        addXp(profileId, xpAmount, 'exercise_correct').catch(console.error);
+                      }
+                      
+                      if (newStreak >= 5 && newStreak % 5 === 0) {
+                        setCelebrationType('streak');
+                        setShowCelebration(true);
+                        playSound('streak');
+                        setTimeout(() => setShowCelebration(false), 2500);
+                      } else {
+                        setCelebrationType('correct');
+                        setShowCelebration(true);
+                        setTimeout(() => setShowCelebration(false), 1500);
+                      }
+                      
+                      getEncouragement(newStreak >= 3 ? 'streak' : 'correct', newStreak)
+                        .then(msg => setAiEncouragement(msg))
+                        .catch(() => setAiEncouragement('Bravo ! 🎉'));
+                    } else {
+                      playSound('incorrect');
+                      setStreakCount(0);
+                      getEncouragement('incorrect')
+                        .then(msg => setAiEncouragement(msg))
+                        .catch(() => setAiEncouragement('Continue, tu vas y arriver ! 💪'));
+                    }
+                  }}
+                  disabled={showResult}
+                />
               </div>
             </div>
-          )}
 
-          <div className="mt-8 flex justify-center">
-            {!showResult ? (
-              <button
-                onClick={checkAnswer}
-                disabled={selectedAnswer === null && inputAnswer === '' && fillBlankAnswers.length === 0 && dragDropOrder.length === 0}
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-lg font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                Vérifier
-              </button>
-            ) : (
-              <button
-                onClick={nextExercise}
-                disabled={loadingNext}
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-lg font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {loadingNext ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Chargement...
-                  </>
-                ) : (
-                  <>
-                    Suivant
-                    <ArrowRight className="h-5 w-5" />
-                  </>
+            {/* Carte d'aide IA */}
+            {!showResult && (
+              <div className="flex justify-center">
+                <button
+                  onClick={requestAIHint}
+                  disabled={loadingHint}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm disabled:opacity-50"
+                >
+                  {loadingHint ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                  ) : (
+                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {loadingHint ? 'Réflexion...' : 'Demander un indice'}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Indice IA */}
+            {showHint && aiHint && (
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0">
+                    <Lightbulb className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 mb-1">
+                      Indice niveau {hintLevel}
+                    </p>
+                    <p className="text-gray-700">{aiHint}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Feedback après réponse */}
+            {showResult && (
+              <div className="space-y-4">
+                {/* Message IA */}
+                {aiEncouragement && (
+                  <div className={`rounded-2xl p-5 ${
+                    isCorrect 
+                      ? 'bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200' 
+                      : 'bg-gradient-to-br from-rose-50 to-red-50 border border-rose-200'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        isCorrect 
+                          ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
+                          : 'bg-gradient-to-br from-rose-400 to-red-500'
+                      }`}>
+                        {isCorrect ? (
+                          <CheckCircle className="h-5 w-5 text-white" />
+                        ) : (
+                          <MessageCircle className="h-5 w-5 text-white" />
+                        )}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-semibold mb-1 ${
+                          isCorrect ? 'text-emerald-700' : 'text-rose-700'
+                        }`}>
+                          {isCorrect ? 'Excellent !' : 'Pas de souci !'}
+                        </p>
+                        <p className="text-gray-700">{aiEncouragement}</p>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </button>
+
+                {/* Bouton suivant */}
+                <button
+                  onClick={nextExercise}
+                  disabled={loadingNext}
+                  className={`w-full py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${
+                    isCorrect
+                      ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-emerald-200'
+                      : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-indigo-200'
+                  } disabled:opacity-50`}
+                >
+                  {loadingNext ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Chargement...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      Continuer
+                      <ArrowRight className="h-5 w-5" />
+                    </span>
+                  )}
+                </button>
+
+                {/* Rating discret */}
+                <div className="flex items-center justify-center gap-4 pt-2">
+                  <span className="text-xs text-gray-400">Cet exercice :</span>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => handleRating(star)}
+                        className="p-0.5 transition-transform hover:scale-125"
+                      >
+                        <Star
+                          className={`h-5 w-5 transition-colors ${
+                            star <= userRating
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'text-gray-200 hover:text-amber-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-            </>
-          )}
-        </div>
+        )}
       </main>
+
+      {/* Lumi flottant */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Lumi 
+          mood={lumiMood} 
+          size="sm" 
+          message={undefined}
+          showMessage={false}
+        />
+      </div>
     </div>
   );
 }

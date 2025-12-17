@@ -75,47 +75,99 @@ export async function generateSkillPresentation({
       presentationType = 'discovery';
     }
 
+    // Extraire les noms réels (sans les clés de traduction)
+    const subjectCode = skill.domains?.subjects?.code || 'math';
+    const skillName = skill.name_key?.replace('skills.', '').replace(/_/g, ' ') || skill.code;
+    const domainName = skill.domains?.name_key?.replace('domains.', '').replace(/_/g, ' ') || 'général';
+    
+    // Déterminer le contexte pédagogique selon la matière
+    const subjectContexts: Record<string, { name: string; style: string; examples: string; blockTypes: string }> = {
+      math: {
+        name: 'Mathématiques',
+        style: 'logique et progressif, avec manipulation de nombres et visualisation',
+        examples: 'calculs concrets (bonbons, billes, argent), problèmes du quotidien',
+        blockTypes: 'hook (défi mathématique), concept (règle illustrée), example (calcul guidé étape par étape), practice (mini-calcul), synthesis (formule à retenir)'
+      },
+      francais: {
+        name: 'Français',
+        style: 'narratif et expressif, avec lecture et écriture',
+        examples: 'histoires courtes, jeux de mots, textes du quotidien (recettes, lettres)',
+        blockTypes: 'hook (histoire captivante ou devinette), reading (texte à lire), vocabulary (mots nouveaux), rule (règle de grammaire/orthographe), practice (phrase à compléter), expression (écriture créative)'
+      },
+      informatique: {
+        name: 'Informatique',
+        style: 'pratique et interactif, avec des analogies du monde réel',
+        examples: 'recettes de cuisine (algorithmes), jeux vidéo, robots',
+        blockTypes: 'hook (problème à résoudre), concept (explication avec analogie), demo (code ou pseudo-code), practice (exercice de logique), debug (trouver l\'erreur)'
+      },
+      sciences: {
+        name: 'Sciences',
+        style: 'expérimental et observationnel, basé sur la curiosité',
+        examples: 'expériences simples, phénomènes naturels, animaux',
+        blockTypes: 'hook (question mystère), observation (décrire un phénomène), hypothesis (deviner), experiment (expérience simple), conclusion (ce qu\'on a appris)'
+      },
+      histoire: {
+        name: 'Histoire',
+        style: 'narratif et chronologique, avec des personnages et événements',
+        examples: 'vie quotidienne d\'époque, personnages historiques, objets anciens',
+        blockTypes: 'hook (voyage dans le temps), context (situer l\'époque), story (récit historique), characters (personnages clés), legacy (impact aujourd\'hui)'
+      }
+    };
+    
+    const subjectContext = subjectContexts[subjectCode] || subjectContexts.math;
+    
+    // Templates de présentation selon le profil de matière
+    const presentationTemplates = subjectProfile?.default_presentation_templates || [];
+    const selectedTemplate = presentationTemplates[0] || { blocks: ['hook', 'concept', 'example', 'practice', 'synthesis'] };
+
     // Générer les blocs de contenu avec GPT-4o
-    const prompt = `Tu es un expert en pédagogie. Génère une présentation de compétence structurée en blocs JSON.
+    const prompt = `Tu es un expert en pédagogie pour enfants. Génère une présentation de compétence ADAPTÉE À LA MATIÈRE.
 
-COMPÉTENCE: ${skill.name_key}
-DESCRIPTION: ${skill.description_key || 'Non spécifiée'}
-MATIÈRE: ${skill.domains?.subjects?.name_key || 'Mathématiques'}
-DOMAINE: ${skill.domains?.name_key || 'Général'}
+=== CONTEXTE ===
+MATIÈRE: ${subjectContext.name}
+COMPÉTENCE: ${skillName}
+DOMAINE: ${domainName}
+TYPE DE CONNAISSANCE: ${subjectProfile?.knowledge_type || 'procédural'}
+MODALITÉ PRINCIPALE: ${subjectProfile?.primary_modality || 'visuel'}
 
-PROFIL ÉLÈVE:
+=== STYLE PÉDAGOGIQUE POUR CETTE MATIÈRE ===
+Approche: ${subjectContext.style}
+Exemples typiques: ${subjectContext.examples}
+Types de blocs recommandés: ${subjectContext.blockTypes}
+
+=== PROFIL ÉLÈVE ===
 - Âge: ${studentProfile.age} ans
 - Style d'apprentissage: ${studentProfile.learning_style || 'visuel'}
-- Centres d'intérêt: ${(studentProfile.interests || []).join(', ') || 'Non spécifiés'}
+- Centres d'intérêt: ${(studentProfile.interests || []).join(', ') || 'jeux, animaux, nature'}
 
-MÉTHODE PÉDAGOGIQUE: ${method?.name_key || 'Traditionnelle'}
-TYPE DE PRÉSENTATION: ${presentationType}
+=== MÉTHODE ===
+Méthode: ${method?.name || 'Traditionnelle'}
+Type: ${presentationType}
 
-Génère exactement 5-7 blocs de contenu. Chaque bloc doit avoir cette structure:
+=== STRUCTURE DEMANDÉE ===
+Génère exactement 4-5 blocs adaptés à ${subjectContext.name}. Chaque bloc:
 {
-  "type": "hook|concept|example|practice|synthesis|real_world|metacognition|extension",
-  "format": "text|story|visual|guided|mnemonic|scenario|self_check",
+  "type": "hook|concept|example|practice|synthesis|reading|vocabulary|rule|expression|observation|experiment",
+  "format": "text|story|visual|guided|mnemonic|challenge|scenario|interactive",
   "content": {
-    // Contenu spécifique au type
+    "title": "Titre court",
+    "text": "Contenu principal adapté à l'âge",
+    "visual_hint": "Description d'illustration ou emoji",
+    "character": "lumi",
+    "emotion": "curious|excited|thinking|encouraging"
   }
 }
 
-TYPES DE BLOCS À INCLURE:
-1. hook (accroche) - Capturer l'attention avec une histoire ou question
-2. concept - Expliquer le concept principal
-3. example - Exemple guidé étape par étape
-4. practice - Mini-exercice pour vérifier
-5. synthesis - Résumé mémorisable
-6. real_world - Application dans la vie réelle
-7. metacognition (optionnel) - Réflexion sur l'apprentissage
+=== RÈGLES IMPORTANTES ===
+1. ADAPTE LE CONTENU À LA MATIÈRE ${subjectContext.name.toUpperCase()}
+2. Utilise le vocabulaire et les exemples propres à cette matière
+3. Langage simple pour un enfant de ${studentProfile.age} ans
+4. Sois engageant avec des émojis et un ton encourageant
+5. Pour le Français: inclus des textes à lire, du vocabulaire
+6. Pour les Maths: inclus des calculs, des manipulations
+7. Pour l'Informatique: inclus de la logique, des algorithmes simples
 
-RÈGLES:
-- Adapte le langage à l'âge de l'élève
-- Utilise des exemples concrets liés à ses intérêts si possible
-- Sois engageant et encourageant
-- Inclus des éléments visuels (emoji, descriptions d'images)
-
-Réponds UNIQUEMENT avec un tableau JSON valide de blocs, sans explication.`;
+Réponds UNIQUEMENT avec un objet JSON: {"blocks": [...]}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',

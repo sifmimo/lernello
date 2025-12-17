@@ -16,7 +16,12 @@ import {
   BarChart3,
   Clock,
   Database,
-  Loader2
+  Loader2,
+  Cpu,
+  ToggleLeft,
+  ToggleRight,
+  Save,
+  Sparkles
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -44,6 +49,20 @@ interface AIUsageData {
   }>;
 }
 
+interface AIModel {
+  id: string;
+  provider: string;
+  model_name: string;
+  display_name: string;
+  is_active: boolean;
+  is_default: boolean;
+  sort_order: number;
+  cost_per_1k_input: number;
+  cost_per_1k_output: number;
+  max_tokens: number;
+  description: string | null;
+}
+
 interface AIConfig {
   defaultModel: string;
   maxTokensPerRequest: number;
@@ -54,7 +73,7 @@ interface AIConfig {
 }
 
 const DEFAULT_CONFIG: AIConfig = {
-  defaultModel: 'gpt-4o-mini',
+  defaultModel: 'gpt-4o',
   maxTokensPerRequest: 2000,
   cacheEnabled: true,
   cacheTTL: 3600,
@@ -65,9 +84,11 @@ const DEFAULT_CONFIG: AIConfig = {
 export default function AIControlClient() {
   const [usageData, setUsageData] = useState<AIUsageData | null>(null);
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
+  const [aiModels, setAiModels] = useState<AIModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'logs'>('dashboard');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'models' | 'logs'>('dashboard');
 
   useEffect(() => {
     loadData();
@@ -76,6 +97,39 @@ export default function AIControlClient() {
   async function loadData() {
     setLoading(true);
     const supabase = createClient();
+
+    // Charger les modèles IA
+    const { data: modelsData } = await supabase
+      .from('ai_model_config')
+      .select('*')
+      .order('sort_order', { ascending: true });
+    
+    setAiModels(modelsData || []);
+
+    // Charger les réglages persistés
+    const { data: settingsData } = await supabase
+      .from('ai_settings')
+      .select('key, value');
+    
+    if (settingsData) {
+      const settings: Record<string, unknown> = {};
+      settingsData.forEach(s => {
+        try {
+          settings[s.key] = JSON.parse(s.value);
+        } catch {
+          settings[s.key] = s.value;
+        }
+      });
+      
+      setConfig({
+        defaultModel: (settings.default_model as string) || DEFAULT_CONFIG.defaultModel,
+        maxTokensPerRequest: (settings.max_tokens_per_request as number) || DEFAULT_CONFIG.maxTokensPerRequest,
+        cacheEnabled: settings.cache_enabled !== undefined ? (settings.cache_enabled as boolean) : DEFAULT_CONFIG.cacheEnabled,
+        cacheTTL: (settings.cache_ttl as number) || DEFAULT_CONFIG.cacheTTL,
+        rateLimitPerMinute: (settings.rate_limit_per_minute as number) || DEFAULT_CONFIG.rateLimitPerMinute,
+        costAlertThreshold: (settings.cost_alert_threshold as number) || DEFAULT_CONFIG.costAlertThreshold,
+      });
+    }
 
     const { data: aiLogs } = await supabase
       .from('ai_generation_logs')
@@ -145,8 +199,61 @@ export default function AIControlClient() {
 
   async function saveConfig() {
     setSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    setSaveSuccess(false);
+    const supabase = createClient();
+
+    const settingsToSave = [
+      { key: 'default_model', value: JSON.stringify(config.defaultModel) },
+      { key: 'max_tokens_per_request', value: JSON.stringify(config.maxTokensPerRequest) },
+      { key: 'cache_enabled', value: JSON.stringify(config.cacheEnabled) },
+      { key: 'cache_ttl', value: JSON.stringify(config.cacheTTL) },
+      { key: 'rate_limit_per_minute', value: JSON.stringify(config.rateLimitPerMinute) },
+      { key: 'cost_alert_threshold', value: JSON.stringify(config.costAlertThreshold) },
+    ];
+
+    for (const setting of settingsToSave) {
+      await supabase
+        .from('ai_settings')
+        .upsert({ key: setting.key, value: setting.value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    }
+
     setSaving(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  }
+
+  async function toggleModelActive(modelId: string, isActive: boolean) {
+    const supabase = createClient();
+    await supabase
+      .from('ai_model_config')
+      .update({ is_active: isActive })
+      .eq('id', modelId);
+    
+    setAiModels(prev => prev.map(m => m.id === modelId ? { ...m, is_active: isActive } : m));
+  }
+
+  async function setDefaultModel(modelName: string) {
+    const supabase = createClient();
+    
+    // Désactiver l'ancien défaut
+    await supabase
+      .from('ai_model_config')
+      .update({ is_default: false })
+      .eq('is_default', true);
+    
+    // Activer le nouveau défaut
+    await supabase
+      .from('ai_model_config')
+      .update({ is_default: true })
+      .eq('model_name', modelName);
+    
+    // Mettre à jour le setting
+    await supabase
+      .from('ai_settings')
+      .upsert({ key: 'default_model', value: JSON.stringify(modelName), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    
+    setAiModels(prev => prev.map(m => ({ ...m, is_default: m.model_name === modelName })));
+    setConfig(prev => ({ ...prev, defaultModel: modelName }));
   }
 
   if (loading) {
@@ -187,7 +294,7 @@ export default function AIControlClient() {
           </div>
           
           <div className="flex gap-1 mt-4">
-            {(['dashboard', 'config', 'logs'] as const).map((tab) => (
+            {(['dashboard', 'models', 'config', 'logs'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -197,7 +304,7 @@ export default function AIControlClient() {
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
-                {tab === 'dashboard' ? 'Tableau de bord' : tab === 'config' ? 'Configuration' : 'Logs'}
+                {tab === 'dashboard' ? 'Tableau de bord' : tab === 'models' ? 'Modèles IA' : tab === 'config' ? 'Configuration' : 'Logs'}
               </button>
             ))}
           </div>
@@ -297,6 +404,107 @@ export default function AIControlClient() {
           </div>
         )}
 
+        {activeTab === 'models' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Modèles IA disponibles</h2>
+                <p className="text-sm text-muted-foreground">{aiModels.filter(m => m.is_active).length} modèles actifs sur {aiModels.length}</p>
+              </div>
+            </div>
+
+            {/* Grouper par provider */}
+            {['openai', 'anthropic', 'google', 'mistral', 'meta', 'xai'].map(provider => {
+              const providerModels = aiModels.filter(m => m.provider === provider);
+              if (providerModels.length === 0) return null;
+              
+              const providerNames: Record<string, string> = {
+                openai: 'OpenAI',
+                anthropic: 'Anthropic',
+                google: 'Google',
+                mistral: 'Mistral AI',
+                meta: 'Meta',
+                xai: 'xAI'
+              };
+              
+              const providerColors: Record<string, string> = {
+                openai: 'bg-emerald-500',
+                anthropic: 'bg-orange-500',
+                google: 'bg-blue-500',
+                mistral: 'bg-purple-500',
+                meta: 'bg-indigo-500',
+                xai: 'bg-gray-800'
+              };
+
+              return (
+                <div key={provider} className="bg-white rounded-xl border overflow-hidden">
+                  <div className={`px-4 py-3 ${providerColors[provider]} text-white flex items-center gap-2`}>
+                    <Cpu className="h-5 w-5" />
+                    <span className="font-semibold">{providerNames[provider]}</span>
+                    <span className="text-white/70 text-sm">({providerModels.length} modèles)</span>
+                  </div>
+                  <div className="divide-y">
+                    {providerModels.map(model => (
+                      <div key={model.id} className={`p-4 flex items-center justify-between ${!model.is_active ? 'opacity-50 bg-gray-50' : ''}`}>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{model.display_name}</span>
+                            {model.is_default && (
+                              <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full font-medium">
+                                Par défaut
+                              </span>
+                            )}
+                            {model.model_name.includes('5.2') && (
+                              <span className="px-2 py-0.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs rounded-full font-medium flex items-center gap-1">
+                                <Sparkles className="h-3 w-3" /> Nouveau
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-0.5">{model.model_name}</p>
+                          {model.description && (
+                            <p className="text-xs text-gray-500 mt-1">{model.description}</p>
+                          )}
+                          <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                            {model.cost_per_1k_input > 0 && (
+                              <span>Input: ${model.cost_per_1k_input}/1K</span>
+                            )}
+                            {model.cost_per_1k_output > 0 && (
+                              <span>Output: ${model.cost_per_1k_output}/1K</span>
+                            )}
+                            {model.max_tokens > 0 && (
+                              <span>Max: {(model.max_tokens / 1000).toFixed(0)}K tokens</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {model.is_active && !model.is_default && (
+                            <button
+                              onClick={() => setDefaultModel(model.model_name)}
+                              className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50"
+                            >
+                              Définir par défaut
+                            </button>
+                          )}
+                          <button
+                            onClick={() => toggleModelActive(model.id, !model.is_active)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              model.is_active 
+                                ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                          >
+                            {model.is_active ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {activeTab === 'config' && (
           <div className="max-w-2xl space-y-6">
             <div className="bg-white rounded-xl border p-6">
@@ -313,10 +521,11 @@ export default function AIControlClient() {
                     onChange={(e) => setConfig({ ...config, defaultModel: e.target.value })}
                     className="w-full border rounded-lg px-3 py-2"
                   >
-                    <option value="gpt-4o-mini">GPT-4o-mini (économique)</option>
-                    <option value="gpt-4o">GPT-4o (performant)</option>
-                    <option value="claude-3-haiku">Claude-3-haiku (rapide)</option>
-                    <option value="claude-3-sonnet">Claude-3-sonnet (équilibré)</option>
+                    {aiModels.filter(m => m.is_active).map(model => (
+                      <option key={model.id} value={model.model_name}>
+                        {model.display_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -392,9 +601,28 @@ export default function AIControlClient() {
             <button
               onClick={saveConfig}
               disabled={saving}
-              className="w-full py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+              className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
+                saveSuccess 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-primary text-white hover:bg-primary/90 disabled:opacity-50'
+              }`}
             >
-              {saving ? 'Enregistrement...' : 'Enregistrer la configuration'}
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Configuration enregistrée !
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Enregistrer la configuration
+                </>
+              )}
             </button>
           </div>
         )}

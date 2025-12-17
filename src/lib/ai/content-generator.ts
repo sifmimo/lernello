@@ -36,28 +36,41 @@ interface GeneratedExercise {
 async function getModelForTask(taskType: string): Promise<{ model: AIModel; maxTokens: number; temperature: number }> {
   const supabase = await createClient();
   
-  const { data } = await supabase
+  // Récupérer les réglages globaux
+  const { data: settings } = await supabase
+    .from('ai_settings')
+    .select('key, value');
+  
+  const globalSettings: Record<string, unknown> = {};
+  settings?.forEach(s => {
+    try {
+      globalSettings[s.key] = JSON.parse(s.value);
+    } catch {
+      globalSettings[s.key] = s.value;
+    }
+  });
+
+  const defaultModel = (globalSettings.default_model as string) || 'gpt-4o';
+  const maxTokensGlobal = (globalSettings.max_tokens_per_request as number) || 2000;
+
+  // Récupérer le modèle par défaut depuis ai_model_config
+  const { data: modelConfig } = await supabase
     .from('ai_model_config')
-    .select('model_name, max_tokens, temperature')
-    .eq('task_type', taskType)
+    .select('model_name')
+    .eq('is_default', true)
     .eq('is_active', true)
     .single();
 
-  if (data) {
-    return {
-      model: data.model_name as AIModel,
-      maxTokens: data.max_tokens,
-      temperature: data.temperature,
-    };
-  }
+  const activeDefaultModel = modelConfig?.model_name || defaultModel;
 
-  // Defaults
+  // Defaults par type de tâche
   const defaults: Record<string, { model: AIModel; maxTokens: number; temperature: number }> = {
-    exercise_generation: { model: 'gpt-4o', maxTokens: 2000, temperature: 0.7 },
-    hint: { model: 'gpt-4o-mini', maxTokens: 200, temperature: 0.5 },
-    encouragement: { model: 'gpt-4o-mini', maxTokens: 100, temperature: 0.8 },
-    explanation: { model: 'gpt-4o-mini', maxTokens: 500, temperature: 0.6 },
-    evaluation: { model: 'gpt-4o-mini', maxTokens: 100, temperature: 0.3 },
+    exercise_generation: { model: activeDefaultModel as AIModel, maxTokens: maxTokensGlobal, temperature: 0.7 },
+    hint: { model: 'gpt-4o-mini' as AIModel, maxTokens: 200, temperature: 0.5 },
+    encouragement: { model: 'gpt-4o-mini' as AIModel, maxTokens: 100, temperature: 0.8 },
+    explanation: { model: 'gpt-4o-mini' as AIModel, maxTokens: 500, temperature: 0.6 },
+    evaluation: { model: 'gpt-4o-mini' as AIModel, maxTokens: 100, temperature: 0.3 },
+    subject_generation: { model: activeDefaultModel as AIModel, maxTokens: maxTokensGlobal, temperature: 0.7 },
   };
 
   return defaults[taskType] || defaults.exercise_generation;

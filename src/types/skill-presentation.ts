@@ -6,7 +6,29 @@ export type BlockType =
   | 'synthesis'
   | 'real_world'
   | 'metacognition'
-  | 'extension';
+  | 'extension'
+  // Français
+  | 'reading'
+  | 'vocabulary'
+  | 'rule'
+  | 'expression'
+  | 'dictation'
+  // Sciences
+  | 'observation'
+  | 'hypothesis'
+  | 'experiment'
+  | 'conclusion'
+  // Histoire
+  | 'context'
+  | 'story'
+  | 'characters'
+  | 'legacy'
+  // Informatique
+  | 'demo'
+  | 'debug'
+  // Arts
+  | 'technique'
+  | 'creation';
 
 export type BlockFormat = 
   | 'text'
@@ -77,6 +99,7 @@ export interface ContentBlock {
 
 export interface BlockContent {
   text?: string;
+  title?: string;
   character?: string;
   emotion?: string;
   image_url?: string;
@@ -88,8 +111,9 @@ export interface BlockContent {
   video_url?: string;
   audio_url?: string;
   problem?: string;
-  steps?: { instruction: string; answer: string }[];
+  steps?: { instruction: string; answer?: string; visual?: string }[];
   visual_support?: string;
+  visual_hint?: string;
   exercise_template_id?: string;
   difficulty?: number;
   feedback_style?: string;
@@ -104,6 +128,20 @@ export interface BlockContent {
   tip?: string;
   fact?: string;
   source?: string;
+  hint?: string;
+  words?: { word: string; definition: string; example?: string }[];
+  rule_text?: string;
+  examples?: string[];
+  code?: string;
+  language?: string;
+  expected_output?: string;
+  materials?: string[];
+  procedure?: string[];
+  result?: string;
+  period?: string;
+  date?: string;
+  people?: { name: string; role: string }[];
+  impact?: string;
 }
 
 export interface TargetProfile {
