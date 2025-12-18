@@ -66,9 +66,10 @@ export async function selectExercisesForSession(
 
   const { data: pool } = await supabase
     .from('exercises')
-    .select('id, type, content, difficulty')
+    .select('id, type, content, difficulty, is_ai_generated, quality_score')
     .eq('skill_id', skillId)
     .or('pool_status.eq.active,pool_status.is.null')
+    .neq('type', 'free_input')  // Éviter les questions vagues
     .order('quality_score', { ascending: false, nullsFirst: false });
 
   if (!pool || pool.length === 0) {
@@ -125,6 +126,8 @@ export async function selectExercisesForSession(
       type: next.type,
       content: next.content as SessionExercise['content'],
       difficulty: next.difficulty,
+      is_ai_generated: next.is_ai_generated ?? false,
+      quality_score: next.quality_score ?? 50,
     });
     unseen = unseen.filter(e => e.id !== next.id);
     lastType = next.type;
@@ -139,6 +142,8 @@ export async function selectExercisesForSession(
       type: e.type,
       content: e.content as SessionExercise['content'],
       difficulty: e.difficulty,
+      is_ai_generated: e.is_ai_generated ?? false,
+      quality_score: e.quality_score ?? 50,
     })));
   }
 
@@ -158,7 +163,8 @@ async function generateExercisesForSkill(skillId: string, count: number): Promis
 
   const { generateExerciseWithAI } = await import('@/lib/ai/content-generator');
   const generated: SessionExercise[] = [];
-  const types = ['qcm', 'fill_blank', 'free_input'];
+  // Éviter free_input car les questions sont souvent trop vagues
+  const types = ['qcm', 'fill_blank', 'qcm'];
 
   for (let i = 0; i < Math.min(count, 5); i++) {
     try {
@@ -354,6 +360,8 @@ export async function completeSession(sessionId: string): Promise<SessionRecap |
     time_spent_seconds: timeSpent,
     streak_bonus: session.exercises_correct >= 3,
     level_up: false,
+    canContinue: true,
+    skillId: session.skill_id,
   };
 }
 
@@ -382,4 +390,37 @@ export async function getActiveSession(studentId: string, skillId: string): Prom
     .single();
 
   return data as LearningSession | null;
+}
+
+export async function rateExercise(
+  exerciseId: string,
+  rating: 'good' | 'bad'
+): Promise<boolean> {
+  const supabase = await createClient();
+
+  const adjustment = rating === 'good' ? 5 : -10;
+
+  const { data: exercise } = await supabase
+    .from('exercises')
+    .select('quality_score')
+    .eq('id', exerciseId)
+    .single();
+
+  if (!exercise) return false;
+
+  const newScore = Math.max(0, Math.min(100, (exercise.quality_score || 50) + adjustment));
+
+  const { error } = await supabase
+    .from('exercises')
+    .update({ quality_score: newScore })
+    .eq('id', exerciseId);
+
+  if (rating === 'bad' && newScore < 20) {
+    await supabase
+      .from('exercises')
+      .update({ pool_status: 'flagged' })
+      .eq('id', exerciseId);
+  }
+
+  return !error;
 }

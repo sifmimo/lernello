@@ -16,6 +16,7 @@ import {
   submitSessionAnswer,
   completeSession,
   abandonSession,
+  rateExercise,
 } from '@/server/actions/learning-sessions';
 import { SessionHeader } from './SessionHeader';
 import { TheoryStep } from './TheoryStep';
@@ -28,6 +29,7 @@ interface LearningSessionFlowProps {
   skillName: string;
   onComplete: (recap: SessionRecap) => void;
   onExit: () => void;
+  onContinueMore?: () => void;
 }
 
 type StepType = 'theory' | 'exercise' | 'recap';
@@ -37,6 +39,7 @@ export function LearningSessionFlow({
   skillName,
   onComplete,
   onExit,
+  onContinueMore,
 }: LearningSessionFlowProps) {
   const [currentStep, setCurrentStep] = useState(session.current_step);
   const [stepType, setStepType] = useState<StepType>('theory');
@@ -158,6 +161,14 @@ export function LearningSessionFlow({
     }
   };
 
+  const handleRateExercise = async (exerciseId: string, rating: 'good' | 'bad') => {
+    try {
+      await rateExercise(exerciseId, rating);
+    } catch (e) {
+      console.error('[Rating] Error:', e);
+    }
+  };
+
   const progressPercent = (progress.current_step / progress.total_steps) * 100;
 
   return (
@@ -218,6 +229,7 @@ export function LearningSessionFlow({
                   streak={streak}
                   ttsEnabled={ttsEnabled}
                   onAnswer={handleAnswer}
+                  onRate={handleRateExercise}
                 />
               </motion.div>
             ) : stepType === 'recap' && recap ? (
@@ -232,6 +244,7 @@ export function LearningSessionFlow({
                   recap={recap}
                   skillName={skillName}
                   onContinue={handleRecapComplete}
+                  onContinueMore={onContinueMore}
                 />
               </motion.div>
             ) : null}

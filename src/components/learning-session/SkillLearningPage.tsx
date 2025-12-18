@@ -131,6 +131,11 @@ export function SkillLearningPage({ skillId, skillCode, subjectCode }: SkillLear
     loadSkillInfo();
   };
 
+  const handleContinueMore = () => {
+    setActiveSession(null);
+    startSession('practice', 5);
+  };
+
   const handleSessionExit = () => {
     setActiveSession(null);
   };
@@ -150,6 +155,7 @@ export function SkillLearningPage({ skillId, skillCode, subjectCode }: SkillLear
         skillName={skillInfo.name}
         onComplete={handleSessionComplete}
         onExit={handleSessionExit}
+        onContinueMore={handleContinueMore}
       />
     );
   }
@@ -271,25 +277,23 @@ export function SkillLearningPage({ skillId, skillCode, subjectCode }: SkillLear
               </div>
             </button>
 
-            {skillInfo.exercisesCompleted > 0 && (
-              <button
-                onClick={() => startSession('review', 3)}
-                disabled={creatingSession}
-                className="w-full p-4 rounded-2xl border-2 border-gray-200 text-gray-700 flex items-center gap-4 hover:bg-gray-50 transition-all disabled:opacity-50"
-              >
-                <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <RotateCcw className="h-6 w-6 text-gray-600" />
-                </div>
-                <div className="text-left flex-1">
-                  <p className="font-bold text-lg">Réviser</p>
-                  <p className="text-sm text-gray-500">Renforce tes acquis</p>
-                </div>
-                <div className="flex items-center gap-1 text-sm text-gray-400">
-                  <Clock className="h-4 w-4" />
-                  ~3 min
-                </div>
-              </button>
-            )}
+            <button
+              onClick={() => startSession('review', 3)}
+              disabled={creatingSession}
+              className="w-full p-4 rounded-2xl border-2 border-gray-200 text-gray-700 flex items-center gap-4 hover:bg-gray-50 transition-all disabled:opacity-50"
+            >
+              <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center">
+                <RotateCcw className="h-6 w-6 text-gray-600" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-bold text-lg">Réviser</p>
+                <p className="text-sm text-gray-500">Renforce tes acquis</p>
+              </div>
+              <div className="flex items-center gap-1 text-sm text-gray-400">
+                <Clock className="h-4 w-4" />
+                ~3 min
+              </div>
+            </button>
 
             {creatingSession && (
               <div className="flex items-center justify-center gap-2 py-4 text-indigo-600">

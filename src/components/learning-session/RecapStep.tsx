@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Trophy, Star, Clock, Target, Zap, ArrowRight } from 'lucide-react';
+import { Trophy, Star, Clock, Target, Zap, ArrowRight, Dumbbell } from 'lucide-react';
 import { SessionRecap } from '@/types/learning-session';
 import confetti from 'canvas-confetti';
 import { useEffect } from 'react';
@@ -10,9 +10,10 @@ interface RecapStepProps {
   recap: SessionRecap;
   skillName: string;
   onContinue: () => void;
+  onContinueMore?: () => void;
 }
 
-export function RecapStep({ recap, skillName, onContinue }: RecapStepProps) {
+export function RecapStep({ recap, skillName, onContinue, onContinueMore }: RecapStepProps) {
   useEffect(() => {
     if (recap.accuracy >= 80) {
       confetti({
@@ -144,7 +145,19 @@ export function RecapStep({ recap, skillName, onContinue }: RecapStepProps) {
         )}
       </div>
 
-      <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+      <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 space-y-3">
+        {recap.canContinue && onContinueMore && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.85 }}
+            onClick={onContinueMore}
+            className="w-full py-3 rounded-xl border-2 border-indigo-200 text-indigo-600 font-medium hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+          >
+            <Dumbbell className="h-5 w-5" />
+            Continuer avec plus d'exercices
+          </motion.button>
+        )}
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -152,7 +165,7 @@ export function RecapStep({ recap, skillName, onContinue }: RecapStepProps) {
           onClick={onContinue}
           className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
         >
-          Continuer
+          Terminer
           <ArrowRight className="h-5 w-5" />
         </motion.button>
       </div>

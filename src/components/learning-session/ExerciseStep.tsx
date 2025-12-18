@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Lightbulb, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Lightbulb, Loader2, Volume2, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { SessionExercise } from '@/types/learning-session';
+import { tts } from '@/lib/tts';
 
 interface ExerciseStepProps {
   exercise: SessionExercise;
@@ -12,6 +13,7 @@ interface ExerciseStepProps {
   streak: number;
   ttsEnabled: boolean;
   onAnswer: (isCorrect: boolean, timeSpent: number) => void;
+  onRate?: (exerciseId: string, rating: 'good' | 'bad') => void;
 }
 
 export function ExerciseStep({
@@ -21,6 +23,7 @@ export function ExerciseStep({
   streak,
   ttsEnabled,
   onAnswer,
+  onRate,
 }: ExerciseStepProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string | number | null>(null);
   const [inputValue, setInputValue] = useState('');
@@ -29,10 +32,36 @@ export function ExerciseStep({
   const [showHint, setShowHint] = useState(false);
   const [startTime] = useState(Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasRated, setHasRated] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const content = exercise.content;
   const question = content.question || content.text || '';
   const hint = content.hint;
+
+  // Lecture vocale automatique
+  useEffect(() => {
+    if (ttsEnabled && question) {
+      handleSpeak();
+    }
+  }, [exercise.id]);
+
+  const handleSpeak = async () => {
+    if (isSpeaking) return;
+    setIsSpeaking(true);
+    try {
+      await tts.speakQuestion(question);
+    } catch (e) {
+      console.error('[TTS] Error:', e);
+    }
+    setIsSpeaking(false);
+  };
+
+  const handleRate = (rating: 'good' | 'bad') => {
+    if (hasRated || !onRate) return;
+    onRate(exercise.id, rating);
+    setHasRated(true);
+  };
 
   const checkAnswer = useCallback((): boolean => {
     switch (exercise.type) {
@@ -214,18 +243,36 @@ export function ExerciseStep({
     <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">
-            Question {exerciseNumber}/{totalExercises}
-          </span>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-            exercise.difficulty <= 2
-              ? 'bg-green-100 text-green-700'
-              : exercise.difficulty <= 3
-              ? 'bg-amber-100 text-amber-700'
-              : 'bg-red-100 text-red-700'
-          }`}>
-            Niveau {exercise.difficulty}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">
+              Question {exerciseNumber}/{totalExercises}
+            </span>
+            {exercise.is_ai_generated && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-600 text-xs">
+                <Sparkles className="h-3 w-3" />
+                IA
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSpeak}
+              disabled={isSpeaking}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Lire la question"
+            >
+              <Volume2 className={`h-4 w-4 ${isSpeaking ? 'text-indigo-500 animate-pulse' : ''}`} />
+            </button>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              exercise.difficulty <= 2
+                ? 'bg-green-100 text-green-700'
+                : exercise.difficulty <= 3
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-red-100 text-red-700'
+            }`}>
+              Niveau {exercise.difficulty}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -271,17 +318,41 @@ export function ExerciseStep({
                 : 'bg-red-50 border border-red-200'
             }`}
           >
-            <div className="flex items-center gap-3">
-              {isCorrect ? (
-                <>
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  <span className="font-bold text-green-700">Excellent ! 🎉</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-6 w-6 text-red-500" />
-                  <span className="font-bold text-red-700">Pas tout à fait...</span>
-                </>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {isCorrect ? (
+                  <>
+                    <CheckCircle className="h-6 w-6 text-green-500" />
+                    <span className="font-bold text-green-700">Excellent ! 🎉</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-6 w-6 text-red-500" />
+                    <span className="font-bold text-red-700">Pas tout à fait...</span>
+                  </>
+                )}
+              </div>
+              {onRate && !hasRated && (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-500 mr-1">Cet exercice :</span>
+                  <button
+                    onClick={() => handleRate('good')}
+                    className="p-1.5 rounded-full hover:bg-green-100 text-gray-400 hover:text-green-600 transition-colors"
+                    title="Bon exercice"
+                  >
+                    <ThumbsUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleRate('bad')}
+                    className="p-1.5 rounded-full hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors"
+                    title="Mauvais exercice"
+                  >
+                    <ThumbsDown className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              {hasRated && (
+                <span className="text-xs text-gray-400">Merci !</span>
               )}
             </div>
           </motion.div>

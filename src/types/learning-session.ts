@@ -57,8 +57,11 @@ export interface SessionExercise {
     correctOrder?: number[];
     hint?: string;
     acceptedAnswers?: string[];
+    useAIEvaluation?: boolean;
   };
   difficulty: number;
+  is_ai_generated?: boolean;
+  quality_score?: number;
 }
 
 export interface SessionStep {
@@ -76,6 +79,8 @@ export interface SessionRecap {
   streak_bonus: boolean;
   level_up: boolean;
   new_level?: number;
+  canContinue: boolean;
+  skillId: string;
 }
 
 export interface CreateSessionParams {
