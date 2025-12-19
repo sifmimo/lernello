@@ -1,0 +1,12 @@
+export { QCMExercise } from './QCMExercise';
+export { ImageQCMExercise } from './ImageQCMExercise';
+export { FillBlankExercise } from './FillBlankExercise';
+export { FreeInputExercise } from './FreeInputExercise';
+export { DragDropExercise } from './DragDropExercise';
+export { MatchPairsExercise } from './MatchPairsExercise';
+export { SortingExercise } from './SortingExercise';
+export { TimelineExercise } from './TimelineExercise';
+export { HotspotExercise } from './HotspotExercise';
+export { PuzzleExercise } from './PuzzleExercise';
+export { DrawingExercise } from './DrawingExercise';
+export { AnimationExercise } from './AnimationExercise';

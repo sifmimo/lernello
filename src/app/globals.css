@@ -26,6 +26,37 @@
     --input: 240 5.9% 90%;
     --ring: 262 83% 58%;
     --radius: 0.75rem;
+
+    /* Exercise Design System Tokens */
+    --exercise-bg-primary: #FAFAFA;
+    --exercise-bg-secondary: #F3F4F6;
+    --exercise-text-primary: #1A1A1A;
+    --exercise-text-secondary: #6B7280;
+    --exercise-border-default: #E5E7EB;
+    --exercise-border-hover: #D1D5DB;
+    
+    --exercise-selection: #3B82F6;
+    --exercise-selection-bg: #EFF6FF;
+    --exercise-success: #10B981;
+    --exercise-success-bg: #ECFDF5;
+    --exercise-warning: #F59E0B;
+    --exercise-warning-bg: #FFFBEB;
+    
+    --exercise-spacing-xs: 4px;
+    --exercise-spacing-sm: 8px;
+    --exercise-spacing-md: 16px;
+    --exercise-spacing-lg: 24px;
+    --exercise-spacing-xl: 32px;
+    
+    --exercise-radius-sm: 8px;
+    --exercise-radius-md: 12px;
+    --exercise-radius-lg: 16px;
+    
+    --exercise-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --exercise-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+    
+    --exercise-transition-fast: 150ms ease-out;
+    --exercise-transition-normal: 200ms ease-in-out;
   }
 
   .dark {

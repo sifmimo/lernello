@@ -49,7 +49,7 @@ export interface SessionExercise {
   content: {
     question?: string;
     text?: string;
-    options?: string[] | Array<{ text: string; description?: string; emoji?: string }>;
+    options?: string[] | Array<{ text: string; description?: string; emoji?: string; image?: string }>;
     correct?: number;
     answer?: string;
     blanks?: string[];
@@ -60,18 +60,19 @@ export interface SessionExercise {
     useAIEvaluation?: boolean;
     pairs?: Array<{ left: string; right: string }>;
     categories?: string[];
-    // Timeline
     events?: Array<{ text: string; order: number }>;
-    // Hotspot
     scenario?: string;
     correctItem?: string;
-    // Puzzle
     pieces?: string[];
-    // Drawing
     instruction?: string;
     expectedShape?: string;
-    // Animation
     action?: string;
+    explanation?: string;
+    feedback_correct?: string;
+    feedback_incorrect?: string;
+    context_image?: string;
+    question_image?: string;
+    question_audio?: string;
   };
   difficulty: number;
   is_ai_generated?: boolean;
