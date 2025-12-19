@@ -27,20 +27,40 @@
     --ring: 262 83% 58%;
     --radius: 0.75rem;
 
-    /* Exercise Design System Tokens */
-    --exercise-bg-primary: #FAFAFA;
-    --exercise-bg-secondary: #F3F4F6;
-    --exercise-text-primary: #1A1A1A;
-    --exercise-text-secondary: #6B7280;
-    --exercise-border-default: #E5E7EB;
-    --exercise-border-hover: #D1D5DB;
+    /* Exercise Design System Tokens - Fun & Engaging for Kids */
+    --exercise-bg-primary: #ffffff;
+    --exercise-bg-secondary: #f8fafc;
+    --exercise-bg-card: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --exercise-text-primary: #1e293b;
+    --exercise-text-secondary: #64748b;
+    --exercise-border-default: #e2e8f0;
+    --exercise-border-hover: #cbd5e1;
     
-    --exercise-selection: #3B82F6;
-    --exercise-selection-bg: #EFF6FF;
-    --exercise-success: #10B981;
-    --exercise-success-bg: #ECFDF5;
-    --exercise-warning: #F59E0B;
-    --exercise-warning-bg: #FFFBEB;
+    /* Fun Colors */
+    --fun-blue: #4facfe;
+    --fun-purple: #9d50bb;
+    --fun-pink: #ff6b9d;
+    --fun-orange: #ff9a56;
+    --fun-green: #56ab2f;
+    --fun-yellow: #ffd93d;
+    --fun-red: #ff6b6b;
+    --fun-cyan: #00d9ff;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --gradient-warning: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-fun: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --gradient-gold: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+    
+    --exercise-selection: #6366f1;
+    --exercise-selection-bg: #eef2ff;
+    --exercise-success: #10b981;
+    --exercise-success-bg: #d1fae5;
+    --exercise-warning: #f59e0b;
+    --exercise-warning-bg: #fef3c7;
+    --exercise-error: #ef4444;
+    --exercise-error-bg: #fee2e2;
     
     --exercise-spacing-xs: 4px;
     --exercise-spacing-sm: 8px;
@@ -48,15 +68,19 @@
     --exercise-spacing-lg: 24px;
     --exercise-spacing-xl: 32px;
     
-    --exercise-radius-sm: 8px;
-    --exercise-radius-md: 12px;
-    --exercise-radius-lg: 16px;
+    --exercise-radius-sm: 12px;
+    --exercise-radius-md: 16px;
+    --exercise-radius-lg: 24px;
+    --exercise-radius-full: 9999px;
     
-    --exercise-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --exercise-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+    --exercise-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --exercise-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --exercise-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+    --exercise-shadow-glow: 0 0 20px rgba(99, 102, 241, 0.4);
     
-    --exercise-transition-fast: 150ms ease-out;
-    --exercise-transition-normal: 200ms ease-in-out;
+    --exercise-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --exercise-transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --exercise-transition-bounce: 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
 
   .dark {

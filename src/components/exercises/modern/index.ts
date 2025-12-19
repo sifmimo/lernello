@@ -1,0 +1,12 @@
+export { ModernQCMExercise } from './ModernQCMExercise';
+export { ModernImageQCMExercise } from './ModernImageQCMExercise';
+export { ModernFillBlankExercise } from './ModernFillBlankExercise';
+export { ModernFreeInputExercise } from './ModernFreeInputExercise';
+export { ModernDragDropExercise } from './ModernDragDropExercise';
+export { ModernMatchPairsExercise } from './ModernMatchPairsExercise';
+export { ModernHotspotExercise } from './ModernHotspotExercise';
+export { ModernSortingExercise } from './ModernSortingExercise';
+export { ModernTimelineExercise } from './ModernTimelineExercise';
+export { ModernPuzzleExercise } from './ModernPuzzleExercise';
+export { ModernDrawingExercise } from './ModernDrawingExercise';
+export { ModernAnimationExercise } from './ModernAnimationExercise';
