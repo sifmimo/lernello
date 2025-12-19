@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAICompletion, AIProvider, AIModel } from './providers';
 import { calculateNextReview, qualityFromCorrectness, SpacedRepetitionData } from '@/lib/spaced-repetition';
 
-export type ExerciseType = 'qcm' | 'fill_blank' | 'drag_drop' | 'free_input';
+export type ExerciseType = 'qcm' | 'fill_blank' | 'drag_drop' | 'free_input' | 'match_pairs' | 'sorting' | 'image_qcm' | 'timeline' | 'hotspot' | 'puzzle' | 'drawing' | 'animation';
 
 interface GenerationConfig {
   skillId: string;
@@ -198,6 +198,141 @@ Format JSON requis:
 - "answer" est la réponse principale attendue
 - "acceptedAnswers" est un tableau de réponses alternatives acceptées (synonymes, variantes)
 - "useAIEvaluation": true permet une évaluation flexible par IA pour les réponses sémantiquement correctes`,
+
+    match_pairs: `Type: Association de paires
+Format JSON requis:
+{
+  "type": "match_pairs",
+  "content": {
+    "question": "Associe chaque opération à son résultat",
+    "pairs": [
+      { "left": "2 + 3", "right": "5" },
+      { "left": "4 + 1", "right": "5" },
+      { "left": "3 + 3", "right": "6" },
+      { "left": "2 + 2", "right": "4" }
+    ],
+    "hint": "Un indice pour aider"
+  }
+}
+- "pairs" contient les associations correctes
+- L'interface mélangera les éléments de droite pour l'exercice`,
+
+    sorting: `Type: Tri / Classement en catégories
+Format JSON requis:
+{
+  "type": "sorting",
+  "content": {
+    "question": "Classe ces nombres selon leur parité",
+    "categories": ["Pairs", "Impairs"],
+    "items": [
+      { "text": "2", "category": 0 },
+      { "text": "3", "category": 1 },
+      { "text": "4", "category": 0 },
+      { "text": "5", "category": 1 }
+    ],
+    "hint": "Un indice pour aider"
+  }
+}
+- "categories" liste les catégories disponibles
+- "items" contient les éléments avec leur catégorie correcte (index)`,
+
+    image_qcm: `Type: QCM avec images/descriptions
+Format JSON requis:
+{
+  "type": "image_qcm",
+  "content": {
+    "question": "Quel est le triangle ?",
+    "options": [
+      { "text": "Triangle", "description": "Forme à 3 côtés", "emoji": "🔺" },
+      { "text": "Carré", "description": "Forme à 4 côtés égaux", "emoji": "🟦" },
+      { "text": "Cercle", "description": "Forme ronde", "emoji": "🔵" },
+      { "text": "Rectangle", "description": "Forme à 4 côtés", "emoji": "🟩" }
+    ],
+    "correct": 0,
+    "hint": "Un indice pour aider"
+  }
+}
+- Utilise des emojis pour représenter visuellement les options
+- "correct" est l'index de la bonne réponse`,
+
+    timeline: `Type: Chronologie / Ordre temporel
+Format JSON requis:
+{
+  "type": "timeline",
+  "content": {
+    "question": "Place ces événements dans l'ordre chronologique",
+    "events": [
+      { "text": "Se réveiller", "order": 0 },
+      { "text": "Prendre le petit-déjeuner", "order": 1 },
+      { "text": "Aller à l'école", "order": 2 },
+      { "text": "Déjeuner", "order": 3 }
+    ],
+    "hint": "Pense à ta journée type"
+  }
+}
+- "events" contient les événements avec leur ordre correct (0 = premier)
+- L'interface affichera les événements mélangés`,
+
+    hotspot: `Type: Zone à identifier
+Format JSON requis:
+{
+  "type": "hotspot",
+  "content": {
+    "question": "Identifie les éléments demandés",
+    "scenario": "Tu vois un bureau avec un ordinateur, un clavier, une souris et un écran.",
+    "items": ["clavier", "souris", "écran"],
+    "correctItem": "souris",
+    "hint": "C'est l'outil qui permet de cliquer"
+  }
+}
+- "scenario" décrit la scène textuelle
+- "items" liste les éléments présents
+- "correctItem" est l'élément à trouver`,
+
+    puzzle: `Type: Puzzle / Reconstitution
+Format JSON requis:
+{
+  "type": "puzzle",
+  "content": {
+    "question": "Reconstitue la phrase dans le bon ordre",
+    "pieces": ["Le", "chat", "mange", "sa", "pâtée"],
+    "correctOrder": [0, 1, 2, 3, 4],
+    "hint": "Commence par le sujet de la phrase"
+  }
+}
+- "pieces" contient les morceaux mélangés
+- "correctOrder" indique l'ordre correct des indices`,
+
+    drawing: `Type: Dessin / Tracé
+Format JSON requis:
+{
+  "type": "drawing",
+  "content": {
+    "question": "Décris ce que tu dois dessiner",
+    "instruction": "Trace une ligne droite de gauche à droite",
+    "expectedShape": "ligne_horizontale",
+    "hint": "Garde ta main stable"
+  }
+}
+- Pour les exercices de motricité fine
+- "instruction" guide l'élève
+- "expectedShape" décrit la forme attendue`,
+
+    animation: `Type: Animation interactive
+Format JSON requis:
+{
+  "type": "animation",
+  "content": {
+    "question": "Observe et réponds",
+    "scenario": "Un crayon trace lentement une spirale sur la feuille",
+    "action": "Quel mouvement fait le crayon ?",
+    "options": ["Ligne droite", "Spirale", "Zigzag", "Cercle"],
+    "correct": 1,
+    "hint": "Observe bien le mouvement"
+  }
+}
+- Décrit une animation textuelle
+- L'élève doit identifier ce qui se passe`,
   };
 
   return prompts[type];
@@ -246,9 +381,65 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
   const supabase = await createClient();
   const startTime = Date.now();
   
-  // Déterminer le type d'exercice - varier les types
-  const exerciseTypes: ExerciseType[] = ['qcm', 'fill_blank', 'free_input'];
-  const selectedType = config.exerciseType || exerciseTypes[Math.floor(Math.random() * exerciseTypes.length)];
+  // Récupérer les types d'exercices configurés pour cette compétence
+  const { data: skillConfig } = await supabase
+    .from('skills')
+    .select('allowed_exercise_types, preferred_exercise_types')
+    .eq('id', config.skillId)
+    .single();
+  
+  
+  // Types par défaut si non configurés
+  const defaultTypes: ExerciseType[] = ['qcm', 'fill_blank', 'free_input'];
+  let allowedTypes: ExerciseType[] = defaultTypes;
+  
+  if (skillConfig?.allowed_exercise_types && skillConfig.allowed_exercise_types.length > 0) {
+    // Filtrer pour ne garder que les types implémentés
+    const implementedTypes: ExerciseType[] = ['qcm', 'fill_blank', 'free_input', 'drag_drop', 'match_pairs', 'sorting', 'image_qcm', 'timeline', 'hotspot', 'puzzle', 'drawing', 'animation'];
+    allowedTypes = (skillConfig.allowed_exercise_types as string[])
+      .filter(t => implementedTypes.includes(t as ExerciseType)) as ExerciseType[];
+    
+    console.log('[generateExerciseWithAI] Skill config types:', skillConfig.allowed_exercise_types, '-> Filtered:', allowedTypes);
+    
+    if (allowedTypes.length === 0) {
+      console.log('[generateExerciseWithAI] No implemented types found, using defaults');
+      allowedTypes = defaultTypes;
+    }
+  }
+  
+  // Récupérer les types déjà utilisés pour cette compétence pour varier
+  const { data: recentExercises } = await supabase
+    .from('exercises')
+    .select('type')
+    .eq('skill_id', config.skillId)
+    .order('created_at', { ascending: false })
+    .limit(5);
+  
+  const recentTypes = recentExercises?.map(e => e.type as ExerciseType) || [];
+  
+  // Filtrer les types pour éviter de répéter les mêmes
+  let availableTypes = allowedTypes.filter(t => !recentTypes.includes(t));
+  if (availableTypes.length === 0) {
+    availableTypes = allowedTypes; // Si tous les types ont été utilisés, on recommence
+  }
+  
+  // Prioriser les types préférés s'ils existent
+  let selectedType: ExerciseType;
+  if (config.exerciseType) {
+    selectedType = config.exerciseType;
+  } else if (skillConfig?.preferred_exercise_types && skillConfig.preferred_exercise_types.length > 0) {
+    const preferredTypes = (skillConfig.preferred_exercise_types as string[])
+      .filter(t => availableTypes.includes(t as ExerciseType)) as ExerciseType[];
+    if (preferredTypes.length > 0) {
+      selectedType = preferredTypes[Math.floor(Math.random() * preferredTypes.length)];
+    } else {
+      selectedType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    }
+  } else {
+    selectedType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+  }
+  
+  console.log('[generateExerciseWithAI] Allowed types:', allowedTypes, 'Selected:', selectedType);
   
   // Récupérer les exercices existants pour éviter les doublons
   const { data: existingExercises } = await supabase
@@ -266,22 +457,34 @@ export async function generateExerciseWithAI(config: GenerationConfig): Promise<
     ? `\n\nATTENTION: Génère un exercice COMPLÈTEMENT DIFFÉRENT. Questions déjà utilisées (NE PAS RÉPÉTER):\n- ${existingQuestions}`
     : '';
   
-  // Construire le prompt simplifié
-  const systemPrompt = `Tu es un expert en pédagogie. Génère un exercice éducatif en JSON uniquement.
+  // Construire le prompt strict et contextuel
+  const systemPrompt = `Tu es un expert en pédagogie pour enfants. Génère un exercice éducatif en JSON UNIQUEMENT.
 
-RÈGLES:
-1. Réponds UNIQUEMENT avec du JSON valide
-2. Contenu en français
-3. Adapté pour un enfant de ${config.targetAge} ans
-4. VARIE les questions - chaque exercice doit être unique
+CONTEXTE OBLIGATOIRE:
+- Compétence: ${config.skillName}
+${config.skillDescription ? `- Description: ${config.skillDescription}` : ''}
+- Âge cible: ${config.targetAge} ans
+
+RÈGLES ABSOLUES (VIOLATION = ÉCHEC):
+1. L'exercice DOIT tester EXACTEMENT la compétence indiquée ci-dessus
+2. NE JAMAIS générer d'exercice sur un autre sujet
+3. Si la compétence parle d'ordinateur/tablette, l'exercice doit porter sur ordinateur/tablette
+4. Si la compétence parle de mathématiques, l'exercice doit être un calcul
+5. Réponds UNIQUEMENT avec du JSON valide, rien d'autre
+6. Contenu en français, adapté à l'âge
+
+EXEMPLES DE CE QU'IL NE FAUT PAS FAIRE:
+- Compétence "Reconnaître ordinateur/tablette" → NE PAS demander "Quel appareil prend des photos"
+- Compétence "Addition" → NE PAS demander des questions de culture générale
 
 ${getExerciseTypePrompt(selectedType)}`;
 
-  const userPrompt = `Génère un exercice ${selectedType.toUpperCase()} UNIQUE pour: ${config.skillName}
-${config.skillDescription ? `Description: ${config.skillDescription}` : ''}
+  const userPrompt = `COMPÉTENCE À TESTER: ${config.skillName}
+
+Génère un exercice ${selectedType.toUpperCase()} qui teste UNIQUEMENT cette compétence.
 ${avoidDuplicatesPrompt}
 
-JSON uniquement:`;
+JSON:`;
 
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -350,10 +553,16 @@ export async function getOrCreateExercise(
 
   console.log('[V8] getOrCreateExercise - skill:', skillId, 'student:', studentId);
 
-  // 1. Récupérer les infos de la compétence
+  // 1. Récupérer les infos de la compétence avec ses traductions
   const { data: skill } = await supabase
     .from('skills')
-    .select('id, code, name_key, description_key, difficulty_level')
+    .select(`
+      id, code, name_key, description_key, difficulty_level,
+      domain:domains!inner(
+        id, name_key,
+        subject:subjects!inner(id, name_key, code)
+      )
+    `)
     .eq('id', skillId)
     .single();
 
@@ -361,6 +570,31 @@ export async function getOrCreateExercise(
     console.error('[V8] Skill not found:', skillId);
     return null;
   }
+
+  // Extraire domain (peut être un objet ou un tableau selon Supabase)
+  const domain = Array.isArray(skill.domain) ? skill.domain[0] : skill.domain;
+  const subject = domain ? (Array.isArray(domain.subject) ? domain.subject[0] : domain.subject) : null;
+
+  // Récupérer les traductions pour avoir les vrais noms
+  const translationKeys = [
+    skill.name_key,
+    skill.description_key,
+    domain?.name_key,
+    subject?.name_key,
+  ].filter(Boolean) as string[];
+
+  const { data: translations } = await supabase
+    .from('content_translations')
+    .select('key, value')
+    .in('key', translationKeys)
+    .eq('language', language);
+
+  const translationMap = new Map(translations?.map(t => [t.key, t.value]) || []);
+  
+  const skillName = translationMap.get(skill.name_key) || skill.name_key;
+  const skillDescription = translationMap.get(skill.description_key || '') || '';
+  const domainName = translationMap.get(domain?.name_key || '') || '';
+  const subjectName = translationMap.get(subject?.name_key || '') || subject?.code || '';
 
   // 2. Récupérer le profil de l'élève
   const { data: studentProfile } = await supabase
@@ -427,8 +661,8 @@ export async function getOrCreateExercise(
     try {
       const generatedExercise = await generateExerciseWithAI({
         skillId: skill.id,
-        skillName: skill.name_key,
-        skillDescription: skill.description_key || '',
+        skillName: `${subjectName} - ${domainName} - ${skillName}`,
+        skillDescription: skillDescription,
         difficulty: Math.min(5, Math.max(1, minAttempts + 1)),
         language,
         pedagogicalMethod,
@@ -475,8 +709,8 @@ export async function getOrCreateExercise(
     try {
       const generatedExercise = await generateExerciseWithAI({
         skillId: skill.id,
-        skillName: skill.name_key,
-        skillDescription: skill.description_key || '',
+        skillName: `${subjectName} - ${domainName} - ${skillName}`,
+        skillDescription: skillDescription,
         difficulty: 1,
         language,
         pedagogicalMethod,

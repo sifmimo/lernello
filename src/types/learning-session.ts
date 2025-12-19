@@ -49,15 +49,29 @@ export interface SessionExercise {
   content: {
     question?: string;
     text?: string;
-    options?: string[];
+    options?: string[] | Array<{ text: string; description?: string; emoji?: string }>;
     correct?: number;
     answer?: string;
     blanks?: string[];
-    items?: string[];
+    items?: string[] | Array<{ text: string; category: number }>;
     correctOrder?: number[];
     hint?: string;
     acceptedAnswers?: string[];
     useAIEvaluation?: boolean;
+    pairs?: Array<{ left: string; right: string }>;
+    categories?: string[];
+    // Timeline
+    events?: Array<{ text: string; order: number }>;
+    // Hotspot
+    scenario?: string;
+    correctItem?: string;
+    // Puzzle
+    pieces?: string[];
+    // Drawing
+    instruction?: string;
+    expectedShape?: string;
+    // Animation
+    action?: string;
   };
   difficulty: number;
   is_ai_generated?: boolean;
@@ -88,6 +102,7 @@ export interface CreateSessionParams {
   skillId: string;
   sessionType: SessionType;
   targetMinutes?: number;
+  generateNew?: boolean; // Forcer la génération de nouveaux exercices
 }
 
 export interface SessionProgress {

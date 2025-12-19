@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Volume2, CheckCircle, XCircle } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface DictationContent {
   audio_url?: string;
@@ -43,23 +44,18 @@ export function DictationExercise({ content, onAnswer }: DictationExerciseProps)
     return () => audio.removeEventListener('ended', handleEnded);
   }, []);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio && !audio_url) {
       // Use TTS if no audio URL
-      if ('speechSynthesis' in window) {
-        if (isPlaying) {
-          speechSynthesis.cancel();
-          setIsPlaying(false);
-        } else {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = 'fr-FR';
-          utterance.rate = playbackSpeed * 0.8;
-          utterance.onend = () => setIsPlaying(false);
-          speechSynthesis.speak(utterance);
-          setIsPlaying(true);
-          setPlayCount(prev => prev + 1);
-        }
+      if (isPlaying) {
+        tts.stop();
+        setIsPlaying(false);
+      } else {
+        setIsPlaying(true);
+        setPlayCount(prev => prev + 1);
+        await tts.speak(text, { rate: playbackSpeed * 0.8 });
+        setIsPlaying(false);
       }
       return;
     }

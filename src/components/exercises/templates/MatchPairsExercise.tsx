@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { tts } from '@/lib/tts';
 import { CheckCircle, XCircle, Volume2, RotateCcw, Shuffle } from 'lucide-react';
 
 interface MatchPairsExerciseProps {
@@ -39,13 +40,7 @@ export function MatchPairsExercise({ content, onAnswer, disabled }: MatchPairsEx
   };
 
   const speakText = (text?: string) => {
-    if (text && 'speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
-    }
+    if (text) tts.speak(text);
   };
 
   const handleLeftClick = (pairId: string) => {

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Volume2, Lightbulb } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface FillBlankExerciseProps {
   content: {
@@ -32,13 +33,7 @@ export function FillBlankExercise({ content, onAnswer, disabled }: FillBlankExer
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
-    }
+    tts.speak(text);
   };
 
   const playAudio = (url?: string) => {

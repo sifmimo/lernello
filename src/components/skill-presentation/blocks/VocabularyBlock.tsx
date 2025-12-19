@@ -2,6 +2,7 @@
 
 import { ContentBlock } from '@/types/skill-presentation';
 import { BookA, Volume2 } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface VocabularyBlockProps {
   block: ContentBlock;
@@ -12,12 +13,7 @@ export function VocabularyBlock({ block, onInteraction }: VocabularyBlockProps) 
   const { content } = block;
 
   const speakWord = (word: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(word);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.8;
-      speechSynthesis.speak(utterance);
-    }
+    tts.speak(word);
   };
 
   return (

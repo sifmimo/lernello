@@ -59,9 +59,11 @@ export default function VoiceSettingsClient() {
   useEffect(() => {
     // Charger les paramètres sauvegardés
     const savedSettings = localStorage.getItem('voiceSettings');
+    let savedNativeVoice = '';
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
+        savedNativeVoice = parsed.nativeVoice || '';
         setSettings({ ...DEFAULT_SETTINGS, ...parsed });
       } catch {
         // Ignorer les erreurs de parsing
@@ -79,7 +81,8 @@ export default function VoiceSettingsClient() {
         const frenchVoices = voices.filter(v => v.lang.startsWith('fr'));
         setNativeVoices(frenchVoices);
         
-        if (!settings.nativeVoice && frenchVoices.length > 0) {
+        // Seulement définir une voix par défaut si aucune n'est sauvegardée
+        if (!savedNativeVoice && frenchVoices.length > 0) {
           // Sélectionner Amélie par défaut si disponible
           const amelie = frenchVoices.find(v => v.name.toLowerCase().includes('amélie'));
           setSettings(s => ({ ...s, nativeVoice: amelie?.name || frenchVoices[0].name }));

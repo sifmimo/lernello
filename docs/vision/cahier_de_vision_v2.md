@@ -255,7 +255,7 @@ Au-delà de **10 exercices par compétence** :
   - avec ses **tokens personnels**,
   - via sa **clé API personnelle**.
 
-👉 Un message d’information clair est affiché pour prévenir l’utilisateur à chaque changement de mode.
+👉 Un message d’information et une demande de validation claire sont affichés pour prévenir l’utilisateur avant chaque génération supplémentaire.
 
 Objectif :
 **responsabiliser l’usage de l’IA sans créer de friction cachée**.

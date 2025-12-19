@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Volume2, Keyboard, Mic, MicOff } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface TypeAnswerExerciseProps {
   content: {
@@ -34,13 +35,7 @@ export function TypeAnswerExercise({ content, onAnswer, disabled }: TypeAnswerEx
   const inputRef = useRef<HTMLInputElement>(null);
 
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
-    }
+    tts.speak(text);
   };
 
   const playAudio = (url?: string) => {

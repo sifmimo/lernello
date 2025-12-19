@@ -17,11 +17,23 @@ export async function createLearningSession(
   params: CreateSessionParams
 ): Promise<{ session: LearningSession | null; error?: string }> {
   const supabase = await createClient();
-  const { studentId, skillId, sessionType, targetMinutes = 5 } = params;
+  const { studentId, skillId, sessionType, targetMinutes = 5, generateNew = false } = params;
 
   try {
     const targetExercises = Math.round(targetMinutes * EXERCISES_PER_MINUTE);
-    const exercises = await selectExercisesForSession(studentId, skillId, targetExercises);
+    
+    // Si generateNew est true, générer de nouveaux exercices au lieu d'utiliser le pool existant
+    let exercises: SessionExercise[];
+    if (generateNew) {
+      exercises = await generateExercisesForSkill(skillId, targetExercises);
+      // Si pas assez d'exercices générés, compléter avec le pool existant
+      if (exercises.length < targetExercises) {
+        const additionalExercises = await selectExercisesForSession(studentId, skillId, targetExercises - exercises.length);
+        exercises = [...exercises, ...additionalExercises];
+      }
+    } else {
+      exercises = await selectExercisesForSession(studentId, skillId, targetExercises);
+    }
 
     if (exercises.length === 0) {
       return { session: null, error: 'Aucun exercice disponible pour cette compétence' };
@@ -163,11 +175,10 @@ async function generateExercisesForSkill(skillId: string, count: number): Promis
 
   const { generateExerciseWithAI } = await import('@/lib/ai/content-generator');
   const generated: SessionExercise[] = [];
-  // Éviter free_input car les questions sont souvent trop vagues
-  const types = ['qcm', 'fill_blank', 'qcm'];
 
   for (let i = 0; i < Math.min(count, 5); i++) {
     try {
+      // Ne pas forcer le type - laisser le générateur utiliser les types configurés pour la compétence
       const exercise = await generateExerciseWithAI({
         skillId: skill.id,
         skillName: skill.name_key,
@@ -176,11 +187,10 @@ async function generateExercisesForSkill(skillId: string, count: number): Promis
         language: 'fr',
         pedagogicalMethod: 'standard',
         targetAge: 9,
-        exerciseType: types[i % types.length] as 'qcm' | 'fill_blank' | 'free_input',
       });
 
       if (exercise) {
-        const { data: saved } = await supabase
+        const { data: saved, error: insertError } = await supabase
           .from('exercises')
           .insert({
             skill_id: skillId,
@@ -195,7 +205,12 @@ async function generateExercisesForSkill(skillId: string, count: number): Promis
           .select('id, type, content, difficulty')
           .single();
 
+        if (insertError) {
+          console.error('[generateExercisesForSkill] Insert error:', insertError);
+        }
+
         if (saved) {
+          console.log('[generateExercisesForSkill] Saved exercise:', saved.id, saved.type);
           generated.push({
             id: saved.id,
             type: saved.type,
@@ -285,7 +300,10 @@ export async function submitSessionAnswer(
   const newExercisesCompleted = session.exercises_completed + 1;
   const newExercisesCorrect = session.exercises_correct + (isCorrect ? 1 : 0);
   const newStep = session.current_step + 1;
-  const sessionComplete = newStep >= session.total_steps - 1;
+  
+  // La session est complète quand tous les exercices sont faits
+  const exerciseCount = session.exercises_order?.length || 0;
+  const sessionComplete = newExercisesCompleted >= exerciseCount;
 
   const xpGained = isCorrect ? 10 : 2;
   const newXp = session.xp_earned + xpGained;

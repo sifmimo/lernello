@@ -96,10 +96,22 @@ export function LearningSessionFlow({
 
   const loadExercise = async (index: number) => {
     setLoading(true);
-    const exercise = await getSessionExercise(session.id, index);
-    setCurrentExercise(exercise);
-    setStepType('exercise');
-    setLoading(false);
+    try {
+      const exercise = await getSessionExercise(session.id, index);
+      if (!exercise) {
+        console.error('[LearningSession] Exercise not found at index:', index);
+        // Si l'exercice n'existe pas, passer au récap
+        await loadRecap();
+        return;
+      }
+      setCurrentExercise(exercise);
+      setStepType('exercise');
+    } catch (error) {
+      console.error('[LearningSession] Error loading exercise:', error);
+      await loadRecap();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAnswer = useCallback(async (isCorrect: boolean, timeSpent: number) => {

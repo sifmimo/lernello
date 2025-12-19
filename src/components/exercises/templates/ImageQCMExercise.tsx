@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Volume2, Image as ImageIcon } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface ImageQCMExerciseProps {
   content: {
@@ -36,13 +37,7 @@ export function ImageQCMExercise({ content, onAnswer, disabled }: ImageQCMExerci
   };
 
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
-    }
+    tts.speak(text);
   };
 
   const handleSelect = (index: number) => {

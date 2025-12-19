@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkIsAdmin } from '@/lib/admin/check-admin';
 import OpenAI from 'openai';
+import { recommendAndApplyForSubject } from '@/lib/ai/exercise-types-recommender';
 
 export async function POST(request: NextRequest) {
   const isAdmin = await checkIsAdmin();
@@ -227,6 +228,11 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
       { onConflict: 'key,language' }
     );
 
+    // Déterminer intelligemment les types d'exercices pour chaque compétence
+    console.log('[generate-subject] Recommending exercise types for all skills...');
+    const exerciseTypesResult = await recommendAndApplyForSubject(subject.id, language);
+    console.log('[generate-subject] Exercise types recommendation result:', exerciseTypesResult);
+
     return NextResponse.json({ 
       success: true, 
       subject: {
@@ -234,7 +240,8 @@ Réponds UNIQUEMENT avec un JSON valide dans ce format exact:
         code: subject.code,
         name: generatedContent.name,
       },
-      generatedContent 
+      generatedContent,
+      exerciseTypesResult,
     });
   } catch (error: any) {
     console.error('AI generation error:', error);

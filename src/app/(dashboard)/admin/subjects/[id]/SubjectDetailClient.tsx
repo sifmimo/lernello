@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
-  BookOpen, 
-  Save, 
   Trash2, 
   Plus, 
   Edit, 
@@ -16,7 +14,9 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -66,6 +66,8 @@ export default function SubjectDetailPage({ params }: { params: Promise<{ id: st
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [recommendingTypes, setRecommendingTypes] = useState(false);
+  const [recommendResult, setRecommendResult] = useState<{ success: number; failed: number; total: number } | null>(null);
 
   useEffect(() => {
     loadSubject();
@@ -160,11 +162,66 @@ export default function SubjectDetailPage({ params }: { params: Promise<{ id: st
 
   async function deleteSubject() {
     if (!subject) return;
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette matière et tout son contenu ?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette matière et tout son contenu ? Cette action est irréversible.')) return;
 
+    setSaving(true);
     const supabase = createClient();
-    await supabase.from('subjects').delete().eq('id', subject.id);
-    router.push('/admin/subjects');
+    
+    try {
+      // Supprimer en cascade : exercices -> skills -> domains -> subject
+      for (const domain of subject.domains || []) {
+        for (const skill of domain.skills || []) {
+          // Supprimer les exercices de la compétence
+          await supabase.from('exercises').delete().eq('skill_id', skill.id);
+          // Supprimer la progression des élèves
+          await supabase.from('student_skill_progress').delete().eq('skill_id', skill.id);
+          // Supprimer les tentatives d'exercices
+          await supabase.from('exercise_attempts').delete().eq('skill_id', skill.id);
+          // Supprimer le contenu de la compétence
+          await supabase.from('skill_content').delete().eq('skill_id', skill.id);
+          // Supprimer les présentations
+          await supabase.from('skill_presentations').delete().eq('skill_id', skill.id);
+          // Supprimer les compétences débloquées
+          await supabase.from('student_unlocked_skills').delete().eq('skill_id', skill.id);
+          // Supprimer la rotation des exercices
+          await supabase.from('student_exercise_rotation').delete().eq('skill_id', skill.id);
+          // Supprimer les sessions d'apprentissage
+          await supabase.from('learning_sessions').delete().eq('skill_id', skill.id);
+        }
+        // Supprimer les compétences du domaine
+        await supabase.from('skills').delete().eq('domain_id', domain.id);
+      }
+      // Supprimer les domaines
+      await supabase.from('domains').delete().eq('subject_id', subject.id);
+      // Supprimer les traductions liées
+      const translationKeys = [
+        subject.name_key,
+        subject.description_key,
+        ...(subject.domains || []).flatMap(d => [
+          d.name_key,
+          d.description_key,
+          ...(d.skills || []).map(s => s.name_key),
+        ]),
+      ].filter(Boolean);
+      if (translationKeys.length > 0) {
+        await supabase.from('content_translations').delete().in('key', translationKeys);
+      }
+      // Supprimer la matière
+      const { error } = await supabase.from('subjects').delete().eq('id', subject.id);
+      
+      if (error) {
+        console.error('Error deleting subject:', error);
+        alert(`Erreur lors de la suppression: ${error.message}`);
+        setSaving(false);
+        return;
+      }
+      
+      router.push('/admin/subjects');
+    } catch (error) {
+      console.error('Error deleting subject:', error);
+      alert('Erreur lors de la suppression de la matière');
+      setSaving(false);
+    }
   }
 
   async function addDomain() {
@@ -245,6 +302,37 @@ export default function SubjectDetailPage({ params }: { params: Promise<{ id: st
   function startEdit(key: string, currentValue: string) {
     setEditingItem(key);
     setEditValue(currentValue);
+  }
+
+  async function recommendExerciseTypes() {
+    if (!subject) return;
+    if (!confirm('Voulez-vous que l\'IA détermine automatiquement les types d\'exercices adaptés pour toutes les compétences de cette matière ?')) return;
+
+    setRecommendingTypes(true);
+    setRecommendResult(null);
+
+    try {
+      const response = await fetch('/api/admin/recommend-exercise-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjectId: subject.id,
+          language: subject.language || 'fr',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de la recommandation');
+      }
+
+      setRecommendResult(data.result);
+    } catch (err: any) {
+      alert(`Erreur: ${err.message}`);
+    } finally {
+      setRecommendingTypes(false);
+    }
   }
 
   if (loading) {
@@ -346,6 +434,49 @@ export default function SubjectDetailPage({ params }: { params: Promise<{ id: st
               Supprimer
             </button>
           </div>
+        </div>
+
+        {/* Bouton de recommandation des types d'exercices */}
+        <div className="mb-6 p-4 border rounded-xl bg-gradient-to-r from-purple-50 to-blue-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-6 w-6 text-purple-600" />
+              <div>
+                <h3 className="font-semibold">Types d'exercices IA</h3>
+                <p className="text-sm text-muted-foreground">
+                  L'IA détermine automatiquement les types d'exercices adaptés à chaque compétence
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={recommendExerciseTypes}
+              disabled={recommendingTypes}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 inline-flex items-center gap-2"
+            >
+              {recommendingTypes ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analyse en cours...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Réinitialiser les types
+                </>
+              )}
+            </button>
+          </div>
+          {recommendResult && (
+            <div className="mt-3 p-3 bg-white rounded-lg border">
+              <p className="text-sm">
+                <span className="font-medium text-green-600">{recommendResult.success}</span> compétences mises à jour
+                {recommendResult.failed > 0 && (
+                  <span className="text-red-600 ml-2">({recommendResult.failed} échecs)</span>
+                )}
+                <span className="text-muted-foreground ml-2">sur {recommendResult.total} total</span>
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">

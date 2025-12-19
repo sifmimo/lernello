@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ContentBlock } from '@/types/skill-presentation';
 import { Play, Pause, Volume2, Mic, RotateCcw } from 'lucide-react';
 import { Lumi } from '@/components/lumi';
+import { tts } from '@/lib/tts';
 
 interface NarrationBlockProps {
   block: ContentBlock;
@@ -181,17 +182,11 @@ export function NarrationBlock({ block, onInteraction, onComplete }: NarrationBl
       {!audioUrl && (
         <div className="mt-4 flex justify-center">
           <button
-            onClick={() => {
-              // Use browser TTS
-              if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'fr-FR';
-                utterance.rate = 0.9;
-                speechSynthesis.speak(utterance);
-                onInteraction?.();
-                setHasListened(true);
-                onComplete?.(true);
-              }
+            onClick={async () => {
+              await tts.speak(text);
+              onInteraction?.();
+              setHasListened(true);
+              onComplete?.(true);
             }}
             className="flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium shadow-lg hover:shadow-xl transition-shadow"
           >

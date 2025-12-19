@@ -21,8 +21,12 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Dumbbell,
+  RefreshCw
 } from 'lucide-react';
+import { ExerciseTypesConfig } from '@/components/admin/ExerciseTypesConfig';
+import { ExerciseTypeId, DEFAULT_ALLOWED_TYPES } from '@/types/exercise-types';
 import { createClient } from '@/lib/supabase/client';
 
 interface SkillContent {
@@ -90,6 +94,9 @@ export default function SkillDetailClient({ params }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [descValue, setDescValue] = useState('');
+  const [allowedExerciseTypes, setAllowedExerciseTypes] = useState<ExerciseTypeId[]>(DEFAULT_ALLOWED_TYPES);
+  const [preferredExerciseTypes, setPreferredExerciseTypes] = useState<ExerciseTypeId[]>([]);
+  const [recommendingTypes, setRecommendingTypes] = useState(false);
 
   useEffect(() => {
     loadSkill();
@@ -156,6 +163,15 @@ export default function SkillDetailClient({ params }: Props) {
     setTranslations(translationsMap);
     setNameValue(translationsMap[skillData.name_key] || skillData.name_key);
     setDescValue(translationsMap[skillData.description_key] || '');
+    
+    // Charger les types d'exercices configurés
+    if (skillData.allowed_exercise_types) {
+      setAllowedExerciseTypes(skillData.allowed_exercise_types as ExerciseTypeId[]);
+    }
+    if (skillData.preferred_exercise_types) {
+      setPreferredExerciseTypes(skillData.preferred_exercise_types as ExerciseTypeId[]);
+    }
+    
     setLoading(false);
   }
 
@@ -164,6 +180,15 @@ export default function SkillDetailClient({ params }: Props) {
     setSaving(true);
 
     const supabase = createClient();
+
+    // Sauvegarder les types d'exercices dans la table skills
+    await supabase
+      .from('skills')
+      .update({
+        allowed_exercise_types: allowedExerciseTypes,
+        preferred_exercise_types: preferredExerciseTypes.length > 0 ? preferredExerciseTypes : null,
+      })
+      .eq('id', skill.id);
 
     if (content.id) {
       await supabase
@@ -276,6 +301,37 @@ export default function SkillDetailClient({ params }: Props) {
     setSaving(false);
   }
 
+  async function recommendExerciseTypesIA() {
+    if (!skill) return;
+    setRecommendingTypes(true);
+
+    try {
+      const response = await fetch('/api/admin/recommend-exercise-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skillId: skill.id,
+          language: 'fr',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de la recommandation');
+      }
+
+      if (data.recommendation) {
+        setAllowedExerciseTypes(data.recommendation.allowed_types);
+        setPreferredExerciseTypes(data.recommendation.preferred_types);
+      }
+    } catch (err: any) {
+      alert(`Erreur: ${err.message}`);
+    } finally {
+      setRecommendingTypes(false);
+    }
+  }
+
   async function addExample() {
     if (!skill) return;
     const supabase = createClient();
@@ -362,6 +418,7 @@ export default function SkillDetailClient({ params }: Props) {
 
   const sections = [
     { id: 'metadata', label: 'Métadonnées', icon: FileText },
+    { id: 'exercises', label: 'Types d\'exercices', icon: Dumbbell },
     { id: 'objective', label: 'Objectif', icon: Target },
     { id: 'context', label: 'Contexte', icon: Lightbulb },
     { id: 'theory', label: 'Théorie', icon: BookOpen },
@@ -520,6 +577,47 @@ export default function SkillDetailClient({ params }: Props) {
                   </select>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeSection === 'exercises' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Dumbbell className="h-5 w-5" />
+                  Types d'exercices autorisés
+                </h3>
+                <button
+                  onClick={recommendExerciseTypesIA}
+                  disabled={recommendingTypes || saving}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {recommendingTypes ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analyse IA...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4" />
+                      Recommandation IA
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Configurez les types d'exercices qui peuvent être générés pour cette compétence.
+                Les types marqués ⭐ seront prioritaires lors de la génération par l'IA.
+              </p>
+              <ExerciseTypesConfig
+                allowedTypes={allowedExerciseTypes}
+                preferredTypes={preferredExerciseTypes}
+                onChange={(allowed, preferred) => {
+                  setAllowedExerciseTypes(allowed);
+                  setPreferredExerciseTypes(preferred);
+                }}
+                disabled={saving}
+              />
             </div>
           )}
 

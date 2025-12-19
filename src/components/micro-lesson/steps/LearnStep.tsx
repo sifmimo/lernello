@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LearnContent } from '@/types/micro-lesson';
 import { BookOpen, ChevronDown, ChevronUp, AlertTriangle, Lightbulb, Volume2 } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface LearnStepProps {
   learn: LearnContent;
@@ -26,13 +27,7 @@ export function LearnStep({ learn, subjectColor, onComplete }: LearnStepProps) {
   };
 
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
-    }
+    tts.speak(text);
   };
 
   const currentExplanation = learn.explanation[explanationLevel];

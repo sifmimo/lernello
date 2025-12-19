@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Plus, Trash2, Edit, Loader2, Eye, EyeOff, Sparkles, Save, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Loader2, Eye, EyeOff, Sparkles, Save, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Subject {

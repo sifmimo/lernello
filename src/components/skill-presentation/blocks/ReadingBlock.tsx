@@ -3,6 +3,7 @@
 import { ContentBlock } from '@/types/skill-presentation';
 import { BookOpen, Volume2 } from 'lucide-react';
 import { useState } from 'react';
+import { tts } from '@/lib/tts';
 
 interface ReadingBlockProps {
   block: ContentBlock;
@@ -13,14 +14,11 @@ export function ReadingBlock({ block, onInteraction }: ReadingBlockProps) {
   const { content } = block;
   const [isReading, setIsReading] = useState(false);
 
-  const handleRead = () => {
-    if ('speechSynthesis' in window && content.text) {
+  const handleRead = async () => {
+    if (content.text) {
       setIsReading(true);
-      const utterance = new SpeechSynthesisUtterance(content.text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.85;
-      utterance.onend = () => setIsReading(false);
-      speechSynthesis.speak(utterance);
+      await tts.speak(content.text);
+      setIsReading(false);
     }
     onInteraction?.();
   };

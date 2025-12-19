@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Volume2, HelpCircle, ChevronRight } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface QCMOption {
   text: string;
@@ -46,13 +47,7 @@ export function ProfessionalQCM({
   const isCorrect = selectedIndex === correctIndex;
 
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
-    }
+    tts.speak(text);
   };
 
   const handleSelect = (index: number) => {

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { Volume2, VolumeX, Loader2 } from 'lucide-react';
-import { getTTSService, TTSOptions } from '@/lib/tts-service';
+import { tts } from '@/lib/tts';
 
 interface TTSButtonProps {
   text: string;
-  options?: TTSOptions;
+  options?: { rate?: number; pitch?: number; volume?: number };
   size?: 'sm' | 'md' | 'lg';
   variant?: 'icon' | 'button';
   className?: string;
@@ -23,13 +23,10 @@ export function TTSButton({
   const [isSupported, setIsSupported] = useState(true);
 
   useEffect(() => {
-    const tts = getTTSService();
     setIsSupported(tts.isSupported());
   }, []);
 
   const handleClick = async () => {
-    const tts = getTTSService();
-    
     if (isPlaying) {
       tts.stop();
       setIsPlaying(false);

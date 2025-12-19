@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { motion, Reorder, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, GripVertical, Volume2, RotateCcw } from 'lucide-react';
+import { tts } from '@/lib/tts';
 
 interface DragDropSortExerciseProps {
   content: {
@@ -32,13 +33,7 @@ export function DragDropSortExercise({ content, onAnswer, disabled }: DragDropSo
   const [showHint, setShowHint] = useState(false);
 
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
-    }
+    tts.speak(text);
   };
 
   const playAudio = (url?: string) => {

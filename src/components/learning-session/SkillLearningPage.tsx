@@ -131,9 +131,41 @@ export function SkillLearningPage({ skillId, skillCode, subjectCode }: SkillLear
     loadSkillInfo();
   };
 
-  const handleContinueMore = () => {
+  const handleContinueMore = async () => {
     setActiveSession(null);
-    startSession('practice', 5);
+    // Générer de nouveaux exercices pour éviter les répétitions
+    await startSessionWithNewExercises('practice', 5);
+  };
+
+  const startSessionWithNewExercises = async (type: SessionType, minutes: number = 5) => {
+    setCreatingSession(true);
+    setError(null);
+
+    const profileId = localStorage.getItem('activeProfileId');
+    if (!profileId) {
+      router.push('/profiles');
+      return;
+    }
+
+    const result = await createLearningSession({
+      studentId: profileId,
+      skillId,
+      sessionType: type,
+      targetMinutes: minutes,
+      generateNew: true, // Demander la génération de nouveaux exercices
+    });
+
+    if (result.error) {
+      setError(result.error);
+      setCreatingSession(false);
+      return;
+    }
+
+    if (result.session) {
+      setActiveSession(result.session);
+    }
+
+    setCreatingSession(false);
   };
 
   const handleSessionExit = () => {

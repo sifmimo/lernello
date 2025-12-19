@@ -34,6 +34,15 @@ export function ExerciseStep({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasRated, setHasRated] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  // États pour les types d'exercices interactifs
+  const [dragDropOrder, setDragDropOrder] = useState<number[]>([]);
+  const [matchPairs, setMatchPairs] = useState<Record<number, number>>({});
+  const [sortingItems, setSortingItems] = useState<Record<number, number>>({});
+  const [timelineOrder, setTimelineOrder] = useState<number[]>([]);
+  const [selectedHotspot, setSelectedHotspot] = useState<string | null>(null);
+  const [puzzleOrder, setPuzzleOrder] = useState<number[]>([]);
+  const [drawingCompleted, setDrawingCompleted] = useState(false);
 
   const content = exercise.content;
   const question = content.question || content.text || '';
@@ -42,9 +51,17 @@ export function ExerciseStep({
   // Lecture vocale automatique
   useEffect(() => {
     if (ttsEnabled && question) {
-      handleSpeak();
+      // Arrêter toute lecture en cours avant de commencer
+      tts.stop();
+      const timer = setTimeout(() => {
+        tts.speakQuestion(question);
+      }, 300);
+      return () => {
+        clearTimeout(timer);
+        tts.stop();
+      };
     }
-  }, [exercise.id]);
+  }, [exercise.id, ttsEnabled, question]);
 
   const handleSpeak = async () => {
     if (isSpeaking) return;
@@ -66,6 +83,7 @@ export function ExerciseStep({
   const checkAnswer = useCallback((): boolean => {
     switch (exercise.type) {
       case 'qcm':
+      case 'image_qcm':
         return selectedAnswer === content.correct;
 
       case 'fill_blank':
@@ -84,10 +102,43 @@ export function ExerciseStep({
         }
         return false;
 
+      case 'drag_drop':
+        if (!content.correctOrder || dragDropOrder.length === 0) return false;
+        return JSON.stringify(dragDropOrder) === JSON.stringify(content.correctOrder);
+
+      case 'match_pairs':
+        if (!content.pairs) return false;
+        const pairsCount = content.pairs.length;
+        if (Object.keys(matchPairs).length !== pairsCount) return false;
+        return content.pairs.every((_, i) => matchPairs[i] === i);
+
+      case 'sorting':
+        if (!content.items) return false;
+        const itemsArray = content.items as Array<{ text: string; category: number }>;
+        return itemsArray.every((item, i) => sortingItems[i] === item.category);
+
+      case 'timeline':
+        if (!content.events || timelineOrder.length === 0) return false;
+        const sortedEvents = [...content.events].sort((a, b) => a.order - b.order);
+        return timelineOrder.every((idx, pos) => content.events![idx].order === pos);
+
+      case 'hotspot':
+        return selectedHotspot === content.correctItem;
+
+      case 'puzzle':
+        if (!content.correctOrder || puzzleOrder.length === 0) return false;
+        return JSON.stringify(puzzleOrder) === JSON.stringify(content.correctOrder);
+
+      case 'drawing':
+        return drawingCompleted;
+
+      case 'animation':
+        return selectedAnswer === content.correct;
+
       default:
         return false;
     }
-  }, [exercise.type, selectedAnswer, inputValue, content]);
+  }, [exercise.type, selectedAnswer, inputValue, content, dragDropOrder, matchPairs, sortingItems, timelineOrder, selectedHotspot, puzzleOrder, drawingCompleted]);
 
   const handleSubmit = async () => {
     if (isSubmitting || showResult) return;
@@ -99,22 +150,45 @@ export function ExerciseStep({
 
     const timeSpent = Math.round((Date.now() - startTime) / 1000);
 
+    // Appeler onAnswer après un court délai pour laisser l'animation se jouer
     setTimeout(() => {
+      setIsSubmitting(false);
       onAnswer(correct, timeSpent);
-    }, 100);
+    }, 1000);
   };
 
   const canSubmit = () => {
     if (showResult) return false;
     switch (exercise.type) {
       case 'qcm':
+      case 'image_qcm':
+      case 'animation':
         return selectedAnswer !== null;
       case 'fill_blank':
       case 'free_input':
         return inputValue.trim().length > 0;
+      case 'drag_drop':
+        return dragDropOrder.length === (content.items as string[] || []).length;
+      case 'match_pairs':
+        return Object.keys(matchPairs).length === (content.pairs || []).length;
+      case 'sorting':
+        const sortingItemsArray = (content.items || []) as Array<{ text: string; category: number }>;
+        return Object.keys(sortingItems).length === sortingItemsArray.length;
+      case 'timeline':
+        return timelineOrder.length === (content.events || []).length;
+      case 'hotspot':
+        return selectedHotspot !== null;
+      case 'puzzle':
+        return puzzleOrder.length === (content.pieces || []).length;
+      case 'drawing':
+        return drawingCompleted;
       default:
         return false;
     }
+  };
+
+  const getOptionText = (option: string | { text: string; description?: string }): string => {
+    return typeof option === 'string' ? option : option.text;
   };
 
   const renderExerciseContent = () => {
@@ -157,7 +231,9 @@ export function ExerciseStep({
                   >
                     {String.fromCharCode(65 + index)}
                   </div>
-                  <span className="font-medium text-gray-800">{option}</span>
+                  <div className="flex-1">
+                    <span className="font-medium text-gray-800">{getOptionText(option)}</span>
+                  </div>
                   {showResult && index === content.correct && (
                     <CheckCircle className="h-5 w-5 text-green-500 ml-auto" />
                   )}
@@ -167,6 +243,49 @@ export function ExerciseStep({
                 </div>
               </motion.button>
             ))}
+          </div>
+        );
+
+      case 'image_qcm':
+        return (
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            {content.options?.map((option, index) => {
+              const optionObj = typeof option === 'object' ? option : { text: option };
+              return (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: showResult ? 1 : 1.05 }}
+                  whileTap={{ scale: showResult ? 1 : 0.95 }}
+                  onClick={() => !showResult && setSelectedAnswer(index)}
+                  disabled={showResult}
+                  className={`p-4 rounded-2xl border-3 text-center transition-all flex flex-col items-center gap-2 ${
+                    showResult
+                      ? index === content.correct
+                        ? 'border-green-500 bg-green-50 ring-2 ring-green-300'
+                        : selectedAnswer === index
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 opacity-50'
+                      : selectedAnswer === index
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-300'
+                      : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {'emoji' in optionObj && optionObj.emoji && (
+                    <span className="text-4xl">{optionObj.emoji}</span>
+                  )}
+                  <span className="font-bold text-gray-800">{optionObj.text}</span>
+                  {'description' in optionObj && optionObj.description && (
+                    <p className="text-xs text-gray-500">{optionObj.description}</p>
+                  )}
+                  {showResult && index === content.correct && (
+                    <CheckCircle className="h-6 w-6 text-green-500" />
+                  )}
+                  {showResult && selectedAnswer === index && index !== content.correct && (
+                    <XCircle className="h-6 w-6 text-red-500" />
+                  )}
+                </motion.button>
+              );
+            })}
           </div>
         );
 
@@ -234,8 +353,373 @@ export function ExerciseStep({
           </div>
         );
 
+      case 'drag_drop':
+        const items = content.items as string[] || [];
+        return (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-gray-500 mb-2">Clique sur les éléments dans le bon ordre :</p>
+            <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-xl min-h-[60px]">
+              {dragDropOrder.map((itemIndex, orderIndex) => (
+                <motion.button
+                  key={orderIndex}
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    showResult
+                      ? content.correctOrder?.[orderIndex] === itemIndex
+                        ? 'bg-green-500 text-white'
+                        : 'bg-red-500 text-white'
+                      : 'bg-indigo-500 text-white'
+                  }`}
+                  onClick={() => !showResult && setDragDropOrder(prev => prev.filter((_, i) => i !== orderIndex))}
+                  disabled={showResult}
+                >
+                  {items[itemIndex]}
+                </motion.button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {items.map((item, index) => (
+                !dragDropOrder.includes(index) && (
+                  <motion.button
+                    key={index}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-indigo-500 font-medium"
+                    onClick={() => !showResult && setDragDropOrder(prev => [...prev, index])}
+                    disabled={showResult}
+                  >
+                    {item}
+                  </motion.button>
+                )
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'match_pairs':
+        const pairs = content.pairs || [];
+        const shuffledRightIndices = useState(() => 
+          [...Array(pairs.length).keys()].sort(() => Math.random() - 0.5)
+        )[0];
+        return (
+          <div className="mt-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                {pairs.map((pair, leftIndex) => (
+                  <div
+                    key={leftIndex}
+                    className={`p-3 rounded-lg border-2 ${
+                      matchPairs[leftIndex] !== undefined
+                        ? showResult
+                          ? matchPairs[leftIndex] === leftIndex
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-red-500 bg-red-50'
+                          : 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {pair.left}
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {shuffledRightIndices.map((rightIndex) => (
+                  <motion.button
+                    key={rightIndex}
+                    whileHover={{ scale: showResult ? 1 : 1.02 }}
+                    className={`w-full p-3 rounded-lg border-2 text-left ${
+                      Object.values(matchPairs).includes(rightIndex)
+                        ? 'border-gray-200 opacity-50'
+                        : 'border-gray-300 hover:border-indigo-500'
+                    }`}
+                    onClick={() => {
+                      if (showResult) return;
+                      const unmatched = pairs.findIndex((_, i) => matchPairs[i] === undefined);
+                      if (unmatched !== -1) {
+                        setMatchPairs(prev => ({ ...prev, [unmatched]: rightIndex }));
+                      }
+                    }}
+                    disabled={showResult || Object.values(matchPairs).includes(rightIndex)}
+                  >
+                    {pairs[rightIndex]?.right}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'sorting':
+        const sortingItemsArray = (content.items || []) as Array<{ text: string; category: number }>;
+        const categories = content.categories || [];
+        return (
+          <div className="mt-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {categories.map((category, catIndex) => (
+                <div key={catIndex} className="border-2 border-dashed border-gray-300 rounded-xl p-4 min-h-[100px]">
+                  <h4 className="font-medium text-gray-700 mb-2">{category}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(sortingItems)
+                      .filter(([, cat]) => cat === catIndex)
+                      .map(([itemIndex]) => {
+                        const item = sortingItemsArray[parseInt(itemIndex)];
+                        const isCorrectPlacement = item?.category === catIndex;
+                        return (
+                          <span
+                            key={itemIndex}
+                            className={`px-3 py-1 rounded-full text-sm ${
+                              showResult
+                                ? isCorrectPlacement
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-red-500 text-white'
+                                : 'bg-indigo-500 text-white'
+                            }`}
+                          >
+                            {item?.text}
+                          </span>
+                        );
+                      })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-xl">
+              {sortingItemsArray.map((item, index) => (
+                sortingItems[index] === undefined && (
+                  <div key={index} className="flex gap-1">
+                    {categories.map((_, catIndex) => (
+                      <motion.button
+                        key={catIndex}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-3 py-1 rounded-lg border border-gray-300 hover:border-indigo-500 text-sm"
+                        onClick={() => !showResult && setSortingItems(prev => ({ ...prev, [index]: catIndex }))}
+                        disabled={showResult}
+                      >
+                        {item.text} → {categories[catIndex]}
+                      </motion.button>
+                    ))}
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'timeline':
+        const events = content.events || [];
+        return (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-gray-500 mb-2">📅 Place les événements dans l'ordre chronologique :</p>
+            <div className="flex flex-wrap gap-2 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl min-h-[60px] border-2 border-dashed border-indigo-200">
+              {timelineOrder.map((eventIndex, orderIndex) => (
+                <motion.div
+                  key={orderIndex}
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${
+                    showResult
+                      ? events[eventIndex]?.order === orderIndex
+                        ? 'bg-green-500 text-white'
+                        : 'bg-red-500 text-white'
+                      : 'bg-indigo-500 text-white'
+                  }`}
+                >
+                  <span className="text-xs opacity-75">{orderIndex + 1}.</span>
+                  {events[eventIndex]?.text}
+                  {!showResult && (
+                    <button
+                      onClick={() => setTimelineOrder(prev => prev.filter((_, i) => i !== orderIndex))}
+                      className="ml-1 text-white/70 hover:text-white"
+                    >×</button>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {events.map((event, index) => (
+                !timelineOrder.includes(index) && (
+                  <motion.button
+                    key={index}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-indigo-500 font-medium bg-white shadow-sm"
+                    onClick={() => !showResult && setTimelineOrder(prev => [...prev, index])}
+                    disabled={showResult}
+                  >
+                    {event.text}
+                  </motion.button>
+                )
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'hotspot':
+        const hotspotItems = content.items as string[] || [];
+        return (
+          <div className="mt-6 space-y-4">
+            <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+              <p className="text-gray-700 italic mb-2">🎯 Scénario :</p>
+              <p className="text-gray-800 font-medium">{content.scenario}</p>
+            </div>
+            <p className="text-sm text-gray-500">Clique sur l'élément demandé :</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {hotspotItems.map((item, index) => (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: showResult ? 1 : 1.05 }}
+                  whileTap={{ scale: showResult ? 1 : 0.95 }}
+                  onClick={() => !showResult && setSelectedHotspot(item)}
+                  disabled={showResult}
+                  className={`p-4 rounded-xl border-2 text-center font-medium transition-all ${
+                    showResult
+                      ? item === content.correctItem
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : selectedHotspot === item
+                        ? 'border-red-500 bg-red-50 text-red-700'
+                        : 'border-gray-200 opacity-50'
+                      : selectedHotspot === item
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  {item}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'puzzle':
+        const pieces = content.pieces || [];
+        return (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-gray-500 mb-2">🧩 Reconstitue dans le bon ordre :</p>
+            <div className="flex flex-wrap gap-2 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl min-h-[60px] border-2 border-dashed border-purple-200">
+              {puzzleOrder.map((pieceIndex, orderIndex) => (
+                <motion.div
+                  key={orderIndex}
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    showResult
+                      ? content.correctOrder?.[orderIndex] === pieceIndex
+                        ? 'bg-green-500 text-white'
+                        : 'bg-red-500 text-white'
+                      : 'bg-purple-500 text-white'
+                  }`}
+                >
+                  {pieces[pieceIndex]}
+                  {!showResult && (
+                    <button
+                      onClick={() => setPuzzleOrder(prev => prev.filter((_, i) => i !== orderIndex))}
+                      className="ml-2 text-white/70 hover:text-white"
+                    >×</button>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {pieces.map((piece, index) => (
+                !puzzleOrder.includes(index) && (
+                  <motion.button
+                    key={index}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-purple-500 font-medium bg-white shadow-sm"
+                    onClick={() => !showResult && setPuzzleOrder(prev => [...prev, index])}
+                    disabled={showResult}
+                  >
+                    {piece}
+                  </motion.button>
+                )
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'drawing':
+        return (
+          <div className="mt-6 space-y-4">
+            <div className="p-4 bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl border border-pink-200">
+              <p className="text-gray-700 mb-2">🎨 Instruction :</p>
+              <p className="text-gray-800 font-medium text-lg">{content.instruction}</p>
+            </div>
+            <div className="p-6 bg-white rounded-xl border-2 border-dashed border-gray-300 min-h-[150px] flex flex-col items-center justify-center">
+              <p className="text-gray-400 mb-4">Zone de dessin (simulation)</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => !showResult && setDrawingCompleted(!drawingCompleted)}
+                disabled={showResult}
+                className={`px-6 py-3 rounded-xl font-medium transition-all ${
+                  drawingCompleted
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                }`}
+              >
+                {drawingCompleted ? '✓ Dessin terminé' : 'Marquer comme terminé'}
+              </motion.button>
+            </div>
+          </div>
+        );
+
+      case 'animation':
+        return (
+          <div className="mt-6 space-y-4">
+            <div className="p-4 bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl border border-cyan-200">
+              <p className="text-gray-700 mb-2">✨ Animation :</p>
+              <p className="text-gray-800 font-medium italic">{content.scenario}</p>
+            </div>
+            <p className="text-sm text-gray-600 font-medium">{content.action}</p>
+            <div className="grid grid-cols-1 gap-3">
+              {content.options?.map((option, index) => (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: showResult ? 1 : 1.02 }}
+                  whileTap={{ scale: showResult ? 1 : 0.98 }}
+                  onClick={() => !showResult && setSelectedAnswer(index)}
+                  disabled={showResult}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    showResult
+                      ? index === content.correct
+                        ? 'border-green-500 bg-green-50'
+                        : selectedAnswer === index
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 opacity-50'
+                      : selectedAnswer === index
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        showResult
+                          ? index === content.correct
+                            ? 'bg-green-500 text-white'
+                            : selectedAnswer === index
+                            ? 'bg-red-500 text-white'
+                            : 'bg-gray-200 text-gray-600'
+                          : selectedAnswer === index
+                          ? 'bg-indigo-500 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {String.fromCharCode(65 + index)}
+                    </div>
+                    <span className="font-medium text-gray-800">{getOptionText(option)}</span>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        );
+
       default:
-        return <p className="text-gray-500">Type d'exercice non supporté</p>;
+        return <p className="text-gray-500">Type d'exercice non supporté: {exercise.type}</p>;
     }
   };
 
