@@ -16,7 +16,8 @@ test.describe('Authentication Flow', () => {
     
     await expect(page.getByRole('heading', { name: 'Créer un compte' })).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
-    await expect(page.getByLabel('Mot de passe')).toBeVisible();
+    await expect(page.getByLabel('Mot de passe', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Confirmer le mot de passe')).toBeVisible();
   });
 
   test('should show error for invalid credentials', async ({ page }) => {
